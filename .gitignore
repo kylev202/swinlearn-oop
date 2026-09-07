@@ -4,3 +4,11 @@ release/
 *.local
 .DS_Store
 tsconfig.tsbuildinfo
+
+# Desktop (Electron) shell — kept on disk, not published with the site.
+# The static site builds from src/ + index.html alone; nothing here is
+# referenced by vite build or by tsconfig's "include": ["src"].
+desktop/
+scripts/
+build/
+electron-builder.yml
