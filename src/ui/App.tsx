@@ -52,6 +52,16 @@ export function App() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  /*
+   * The same panel, in the two shapes a screen can want it.
+   *
+   * Wide, it is a column beside the page and `sidebarOpen` says whether it is
+   * there. Narrow, there is no room for a column, so it becomes a drawer over
+   * the page and `navOpen` says whether it is out. One control in the topbar
+   * drives whichever of the two applies, because to a reader they are the same
+   * request: show me the list.
+   */
+  const [navOpen, setNavOpen] = useState(false);
   const [toast, setToast] = useState<{ title: string; sub?: string; bad?: boolean } | null>(null);
 
   useEffect(() => {
@@ -71,10 +81,20 @@ export function App() {
   const week = WEEKS.find((w) => (view.name === 'lesson' ? w.number === view.weekNumber : false));
   const lesson = week && view.name === 'lesson' ? week.lessons.find((l) => l.id === view.lessonId) : undefined;
 
+  const isNarrow = () =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 780px)').matches;
+
+  const toggleNav = useCallback(() => {
+    if (isNarrow()) setNavOpen((o) => !o);
+    else setSidebarOpen((o) => !o);
+  }, []);
+
   const openLesson = useCallback(
     (weekNumber: number, lessonId: string, step = 0) => {
       setView({ name: 'lesson', weekNumber, lessonId, step });
       setLast({ weekNumber, lessonId, step });
+      // Picking something is the end of the drawer's job.
+      setNavOpen(false);
     },
     [setLast],
   );
@@ -140,8 +160,11 @@ export function App() {
       }
       if (mod && e.key === 'b') {
         e.preventDefault();
-        setSidebarOpen((o) => !o);
+        toggleNav();
         return;
+      }
+      if (e.key === 'Escape') {
+        setNavOpen(false);
       }
       if (e.altKey && e.key === 'ArrowRight') {
         e.preventDefault();
@@ -153,7 +176,7 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [move]);
+  }, [move, toggleNav]);
 
   // ---- the native menu, in the desktop build
   useEffect(() => {
@@ -165,12 +188,12 @@ export function App() {
       home: () => setView({ name: 'home' }),
       prev: () => move(-1),
       next: () => move(1),
-      sidebar: () => setSidebarOpen((o) => !o),
+      sidebar: toggleNav,
       theme: () => setTheme(state.theme === 'dark' ? 'light' : 'dark'),
       profile: () => setEditingProfile(true),
     };
     return desktop.onMenu((command) => actions[command]?.());
-  }, [move, runExport, runImport, setTheme, state.theme]);
+  }, [move, runExport, runImport, setTheme, state.theme, toggleNav]);
 
   const commands = useMemo<Command[]>(() => {
     const out: Command[] = [
@@ -264,18 +287,19 @@ export function App() {
   return (
     <div className={`app${isDesktop ? ' is-desktop' : ''}${isMac ? ' is-mac' : ''}`}>
       <header className="topbar">
-        {view.name === 'lesson' && (
+        {(view.name === 'lesson' || view.name === 'focus') && (
           <button
-            className="icon-btn"
-            onClick={() => setSidebarOpen((o) => !o)}
-            aria-label={sidebarOpen ? 'Hide the lesson list' : 'Show the lesson list'}
-            title={`Lesson list (${MOD}+B)`}
+            className="icon-btn nav-toggle"
+            onClick={toggleNav}
+            aria-expanded={navOpen}
+            aria-label={sidebarOpen || navOpen ? 'Hide the contents' : 'Show the contents'}
+            title={`Contents (${MOD}+B)`}
           >
             <SidebarIcon />
           </button>
         )}
 
-        <button className="brand" onClick={() => setView({ name: 'home' })}>
+        <button className="brand" onClick={() => { setView({ name: 'home' }); setNavOpen(false); }}>
           <span className="brand-mark">{'{}'}</span>
           <span>
             SwinLearn OOP <small>COS20007</small>
@@ -301,7 +325,7 @@ export function App() {
 
         <button
           className={`focus-btn${view.name === 'focus' ? ' active' : ''}`}
-          onClick={() => setView({ name: 'focus' })}
+          onClick={() => { setView({ name: 'focus' }); setNavOpen(false); }}
           title="Midterm study mode: notes, quizzes and mock papers for Weeks 1-5"
         >
           <TargetIcon />
@@ -342,8 +366,13 @@ export function App() {
       </header>
 
       <div className="body">
-        {view.name === 'lesson' && week && sidebarOpen && (
-          <aside className="sidebar">
+        {/* Only ever hit on a phone: above 780px the drawer is never open. */}
+        {navOpen && (
+          <button className="nav-scrim" aria-label="Close the contents" onClick={() => setNavOpen(false)} />
+        )}
+
+        {view.name === 'lesson' && week && (sidebarOpen || navOpen) && (
+          <aside className={`sidebar${navOpen ? ' nav-open' : ''}`}>
             <div className="side-week">
               <div className="side-week-num">Week {week.number}</div>
               <div className="side-week-title">{week.title}</div>
@@ -477,8 +506,11 @@ export function App() {
             <FocusMode
               focus={state.focus}
               student={state.profile}
+              railOpen={sidebarOpen}
+              navOpen={navOpen}
               onUpdate={updateFocus}
-              onLeave={() => setView({ name: 'home' })}
+              onLeave={() => { setView({ name: 'home' }); setNavOpen(false); }}
+              onCloseNav={() => setNavOpen(false)}
             />
           )}
 

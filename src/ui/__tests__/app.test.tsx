@@ -57,9 +57,20 @@ function openLesson(title: string) {
   fireEvent.click(nav().getByText(title));
 }
 
-/** One option of the first predict block, by position — they hold markup, not just text. */
-function predictOption(i: number): HTMLElement {
-  return document.querySelectorAll<HTMLElement>('.predict-opt')[i];
+/**
+ * One option of the first predict block, by what it says.
+ *
+ * Not by position: options are shuffled per block, so an index here would be
+ * asserting against a permutation the test does not control — and this block's
+ * options are four program outputs, where which one is right is the point.
+ */
+function predictOption(text: string): HTMLElement {
+  const found = [...document.querySelectorAll<HTMLElement>('.predict-opt')].find((b) => {
+    const marker = b.querySelector('.predict-marker')?.textContent ?? '';
+    return (b.textContent ?? '').slice(marker.length) === text;
+  });
+  if (!found) throw new Error(`no prediction reading ${JSON.stringify(text)}`);
+  return found;
 }
 
 /** Jump straight to a step by its title, from the open lesson's step list. */
@@ -107,7 +118,8 @@ describe('the app', () => {
     expect(screen.getByText('Predict first')).toBeInTheDocument();
     expect(screen.queryByText(/What it really did/i)).not.toBeInTheDocument();
 
-    fireEvent.click(predictOption(0));
+    // Deliberately one of the wrong ones — the real output is True/False/True.
+    fireEvent.click(predictOption('True\nTrue\nTrue'));
 
     expect(await screen.findByText('Not what happens')).toBeInTheDocument();
     expect(screen.getByText(/What it really did/i)).toBeInTheDocument();
@@ -178,7 +190,7 @@ describe('the app', () => {
     expect(screen.queryByRole('button', { name: /Mark as read/i })).not.toBeInTheDocument();
     expect(screen.getByText(/1 to answer on this step/i)).toBeInTheDocument();
 
-    fireEvent.click(predictOption(1));
+    fireEvent.click(predictOption('True\nFalse\nTrue'));
     expect(await screen.findByText('✓ Done')).toBeInTheDocument();
   });
 

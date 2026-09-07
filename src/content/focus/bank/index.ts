@@ -17,6 +17,7 @@
  */
 
 import type { FocusQuestion } from '../types';
+import { rng, shuffled } from '../../shuffle';
 import { WEEK1 } from './week1';
 import { WEEK2 } from './week2';
 import { WEEK3 } from './week3';
@@ -45,33 +46,16 @@ export function questionsOfConcept(conceptId: string): FocusQuestion[] {
 
 // ------------------------------------------------------------- shuffling
 
-/**
- * Mulberry32 — a tiny seeded PRNG.
+/*
+ * Question order is seeded rather than random so that "mock paper 3" is the
+ * same ten questions every time it is opened. A student who runs out of time
+ * and comes back, or who wants to re-sit the same paper after revising, gets
+ * the same paper; a fresh paper number gets a genuinely different one.
  *
- * Seeded rather than random so that "mock paper 3" is the same ten questions
- * every time it is opened. A student who runs out of time and comes back, or
- * who wants to re-sit the same paper after revising, gets the same paper; a
- * fresh paper number gets a genuinely different one.
+ * The generator and the Fisher-Yates over it are shared with option shuffling
+ * in `content/shuffle.ts` — same job, and two copies of a shuffle drift apart
+ * the first time one is touched.
  */
-function rng(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function shuffled<T>(items: T[], next: () => number): T[] {
-  const out = items.slice();
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(next() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
-}
 
 // ---------------------------------------------------------- weekly quiz
 
@@ -109,47 +93,6 @@ export function weeklyQuiz(week: number, seed = 1, rounds?: number): FocusQuesti
 /** How many distinct concepts a week has — the length of one full round. */
 export function conceptCountOfWeek(week: number): number {
   return new Set(questionsOfWeek(week).map((q) => q.conceptId)).size;
-}
-
-/**
- * The sittings a week's quiz is offered in.
- *
- * A week holds sixty to eighty questions, which is far too many to sit in one
- * go and exactly the right number to keep re-sitting without repeating. So the
- * length is the student's choice rather than the bank's: one round to find out
- * which ideas are shaky, three to actually drill them, everything when a week
- * is the one still failing two days out.
- *
- * `rounds` is passed straight to `weeklyQuiz`, and because that draws
- * round-robin over concepts, every sitting covers every concept in the week
- * before it asks about any of them twice.
- */
-export const SITTINGS = [
-  {
-    id: 'sweep',
-    label: 'One per concept',
-    blurb: 'A sweep of the week — enough to find the gaps, not to close them.',
-    rounds: 1,
-  },
-  {
-    id: 'drill',
-    label: 'Three per concept',
-    blurb: 'The working session: several angles on each idea, all different from last time.',
-    rounds: 3,
-  },
-  {
-    id: 'everything',
-    label: 'Everything',
-    blurb: 'The whole week, in one sitting. Long, and the honest measure of a week.',
-    rounds: undefined,
-  },
-] as const;
-
-export type Sitting = (typeof SITTINGS)[number];
-
-/** How many questions a given sitting of a week actually works out to. */
-export function sittingLength(week: number, rounds: number | undefined): number {
-  return weeklyQuiz(week, 1, rounds).length;
 }
 
 // ----------------------------------------------------------- mock paper

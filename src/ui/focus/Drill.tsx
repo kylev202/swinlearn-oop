@@ -16,6 +16,7 @@ import { useMemo, useState } from 'react';
 
 import type { FocusQuestion } from '@/content/focus/types';
 import { CONCEPT_BY_ID } from '@/content/focus/concepts';
+import { drillSeed, shuffleChoices } from '@/content/shuffle';
 import type { DrillMode } from '@/state/focus';
 
 import { QuestionCard } from './QuestionCard';
@@ -25,6 +26,15 @@ export interface DrillSpec {
   title: string;
   subtitle: string;
   questions: FocusQuestion[];
+  /**
+   * Fixes the option order for this sitting, and only this one.
+   *
+   * Captured when the drill opens rather than derived here, for the same
+   * reason the question list is: `spec` is rebuilt every time an answer lands,
+   * and an order derived at render time would reshuffle the options under the
+   * student between reading them and clicking one.
+   */
+  salt: number;
   /** Shown above the first question — why this particular run exists. */
   brief?: string;
 }
@@ -42,15 +52,22 @@ export function Drill({
   onRevise: (conceptId: string) => void;
 }) {
   const [at, setAt] = useState(0);
+  // Keyed by question id and held in *display* space, because that is what the
+  // card renders. The canonical index is what gets recorded, one line below.
   const [answers, setAnswers] = useState<Record<string, number>>({});
 
-  const question = spec.questions[at];
+  const views = useMemo(
+    () => spec.questions.map((q) => shuffleChoices(q, drillSeed(q.id, spec.salt))),
+    [spec.questions, spec.salt],
+  );
+
+  const question = views[at];
   const chosen = question ? answers[question.id] : undefined;
-  const finished = at >= spec.questions.length;
+  const finished = at >= views.length;
 
   const missed = useMemo(
-    () => spec.questions.filter((q) => answers[q.id] !== undefined && answers[q.id] !== q.answer),
-    [answers, spec.questions],
+    () => views.filter((q) => answers[q.id] !== undefined && answers[q.id] !== q.answer),
+    [answers, views],
   );
 
   if (!spec.questions.length) {
@@ -65,7 +82,7 @@ export function Drill({
   }
 
   if (finished) {
-    const scored = spec.questions.length;
+    const scored = views.length;
     const right = scored - missed.length;
     return (
       <div className="drill">
@@ -127,7 +144,7 @@ export function Drill({
       <div className="drill-progress" aria-hidden>
         <div
           className="drill-progress-fill"
-          style={{ width: `${(at / spec.questions.length) * 100}%` }}
+          style={{ width: `${(at / views.length) * 100}%` }}
         />
       </div>
 
@@ -137,11 +154,13 @@ export function Drill({
         chosen={chosen}
         reveal
         index={at}
-        total={spec.questions.length}
+        total={views.length}
         onChoose={(choice) => {
           if (answers[question.id] !== undefined) return;
           setAnswers((a) => ({ ...a, [question.id]: choice }));
-          onAnswer(question.id, choice, spec.mode);
+          // Recorded against the option as it was written, not as it was
+          // shown — a saved attempt has to outlive this sitting's shuffle.
+          onAnswer(question.id, question.order[choice], spec.mode);
         }}
       />
 
@@ -151,7 +170,7 @@ export function Drill({
         </button>
         <span className="spacer" />
         <button className="primary" disabled={chosen === undefined} onClick={() => setAt(at + 1)}>
-          {at === spec.questions.length - 1 ? 'Finish' : 'Next →'}
+          {at === views.length - 1 ? 'Finish' : 'Next →'}
         </button>
       </div>
     </div>

@@ -13,7 +13,8 @@
 import { useEffect, useMemo, useRef } from 'react';
 
 import type { WeekNotes } from '@/content/focus/types';
-import { CONCEPT_BY_ID } from '@/content/focus/concepts';
+import { CONCEPT_BY_ID, FOCUS_WEEKS } from '@/content/focus/concepts';
+import { notesOfWeek } from '@/content/focus/notes';
 import { resolveTokens, type StudentProfile } from '@/content/personalize';
 import type { FocusState } from '@/state/focus';
 
@@ -24,6 +25,8 @@ export function NotesView({
   focus,
   student,
   highlightConcept,
+  onBack,
+  onOpenWeek,
   onMarkRead,
   onDrill,
 }: {
@@ -32,6 +35,8 @@ export function NotesView({
   student: StudentProfile;
   /** Scroll to and outline the section covering this concept, after a miss. */
   highlightConcept?: string;
+  onBack: () => void;
+  onOpenWeek: (week: number) => void;
   onMarkRead: (sectionId: string, conceptIds: string[]) => void;
   onDrill: (conceptId: string) => void;
 }) {
@@ -46,8 +51,18 @@ export function NotesView({
     }
   }, [notes.week, highlightConcept]);
 
+  const at = FOCUS_WEEKS.indexOf(notes.week);
+  const prev = notesOfWeek(FOCUS_WEEKS[at - 1]);
+  const next = notesOfWeek(FOCUS_WEEKS[at + 1]);
+
   return (
     <div className="notes">
+      {/* The rail is the way back on a wide screen and is not there on a
+          phone, so the page carries its own. */}
+      <button className="focus-back" onClick={onBack}>
+        <span aria-hidden>&#8592;</span> Readiness board
+      </button>
+
       <div className="notes-head">
         <div className="notes-week">Week {notes.week}</div>
         <h1>{notes.title}</h1>
@@ -94,6 +109,7 @@ export function NotesView({
             )}
 
             <StepView
+              stepId={`note:${section.id}`}
               blocks={section.blocks}
               tokens={tokens}
               student={student}
@@ -121,6 +137,23 @@ export function NotesView({
           </section>
         );
       })}
+
+      {/* Reading a week's notes usually ends with reading the next week's, so
+          the two neighbours are here rather than only in the rail. */}
+      <nav className="notes-nav" aria-label="Other weeks">
+        {prev && (
+          <button className="notes-step" onClick={() => onOpenWeek(prev.week)}>
+            <span className="notes-step-dir">&#8592; Week {prev.week}</span>
+            <span className="notes-step-title">{prev.title}</span>
+          </button>
+        )}
+        {next && (
+          <button className="notes-step notes-step-next" onClick={() => onOpenWeek(next.week)}>
+            <span className="notes-step-dir">Week {next.week} &#8594;</span>
+            <span className="notes-step-title">{next.title}</span>
+          </button>
+        )}
+      </nav>
     </div>
   );
 }

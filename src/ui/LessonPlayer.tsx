@@ -125,6 +125,7 @@ export function LessonPlayer({
         <h1 className="step-h1">{step.title}</h1>
 
         <StepView
+          stepId={step.id}
           blocks={step.blocks}
           tokens={tokens}
           student={student}

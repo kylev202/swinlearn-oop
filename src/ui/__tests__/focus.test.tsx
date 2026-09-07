@@ -43,12 +43,25 @@ async function enterFocus() {
   return await screen.findByText('Do this next');
 }
 
+/** An option's text as it lands in the DOM, with the markdown markers gone. */
+function asShown(md: string): string {
+  return md
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/[`*]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /**
  * Answer whichever question is on screen, right or wrong.
  *
  * The question is read from the DOM rather than named by the caller: a weekly
  * quiz and a fix-up deliberately order the same questions differently, so a
  * test that assumed an order would be asserting against its own guess.
+ *
+ * The option is then found by its *text*, for the same reason one step down —
+ * options are shuffled per sitting, so "the button at index `q.answer`" is a
+ * guess about this run's permutation rather than a fact about the question.
  */
 async function answer(correct: boolean): Promise<string> {
   await waitFor(() => expect(el('.fq')).toBeTruthy());
@@ -56,7 +69,15 @@ async function answer(correct: boolean): Promise<string> {
   const q = QUESTION_BY_ID[id];
   const options = within(el('.fq-opts')).getAllByRole('button');
   expect(options.length).toBe(q.options.length);
-  fireEvent.click(options[correct ? q.answer : (q.answer + 1) % q.options.length]);
+
+  const wanted = asShown(q.options[correct ? q.answer : (q.answer + 1) % q.options.length]);
+  // A button reads as its A-D marker followed by the option; drop the marker.
+  const target = options.find((b) => {
+    const marker = b.querySelector('.quiz-marker')?.textContent ?? '';
+    return asShown((b.textContent ?? '').slice(marker.length)) === wanted;
+  });
+  expect(target, `no option reading "${wanted}" on ${id}`).toBeTruthy();
+  fireEvent.click(target as HTMLElement);
   return id;
 }
 

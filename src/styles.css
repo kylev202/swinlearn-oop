@@ -466,6 +466,10 @@ code, pre { font-family: var(--mono); font-size: 13px; font-variant-ligatures: n
   padding: 0 10px 32px;
 }
 
+/* The dimmed page behind the drawer. Only ever on screen at phone widths —
+   above those the drawer does not exist and neither does this. */
+.nav-scrim { display: none; }
+
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; }
 .home-scroll { overflow-y: auto; flex: 1; }
 
@@ -2297,9 +2301,44 @@ button.status-bad:hover { background: var(--bad-soft); color: var(--bad); }
   .jump-btn { min-width: 0; }
   .crumb-now { max-width: 30vw; }
 }
+/*
+ * Below 780px the sidebar stops being a column and becomes a drawer.
+ *
+ * It used to be `display: none` here, which left a phone with no contents list
+ * at all: no way to another lesson, no way to another week's notes, nothing
+ * but the back of the browser. Same markup, same links — it slides over the
+ * page instead of sitting beside it, and the topbar control that collapses the
+ * column on a wide screen is what pulls it out on a narrow one.
+ */
 @media (max-width: 780px) {
-  .sidebar { display: none; }
+  .sidebar {
+    position: fixed;
+    top: var(--topbar-h);
+    left: 0;
+    bottom: 0;
+    width: min(312px, 84vw);
+    z-index: 40;
+    padding-bottom: 40px;
+    box-shadow: var(--shadow-pop);
+    transform: translateX(-101%);
+    visibility: hidden;
+    transition: transform 220ms var(--ease), visibility 220ms;
+  }
+  .sidebar.nav-open { transform: none; visibility: visible; }
+
+  .nav-scrim {
+    display: block;
+    position: fixed;
+    inset: var(--topbar-h) 0 0 0;
+    z-index: 35;
+    border: 0;
+    border-radius: 0;
+    background: rgba(24, 18, 10, 0.42);
+    animation: scrimIn 180ms var(--ease);
+  }
+  .nav-scrim:hover { background: rgba(24, 18, 10, 0.42); }
 }
+@keyframes scrimIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* --------------------------------------------------------------- loading */
 
@@ -2682,58 +2721,29 @@ button.status-bad:hover { background: var(--bad-soft); color: var(--bad); }
 .tile-shaky:hover:not(:disabled) { border-color: var(--bad); color: var(--bad); }
 .tile-solid:hover:not(:disabled) { border-color: var(--ok); color: var(--ok); }
 
-.week-row-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 13px 0 0 40px; }
-
-/* The quiz-length picker: one control, three lengths.
-   Joined segments with a leading label, so it reads as "how long a sitting"
-   rather than as three more buttons sitting beside "Revision notes". */
-.sittings {
-  display: flex;
-  align-items: stretch;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  background: var(--bg-raised);
-}
-.sittings-label {
-  display: flex;
+/* One link out of a week row, set as a link and not a button.
+ *
+ * The row's own controls are the tiles — every one of them opens questions on
+ * that idea — so what was missing under them was somewhere to *read*. A
+ * quiz-length picker, a bank count and a second notes button were three more
+ * bordered things per row and five rows down the page, which is what made the
+ * board read as chrome rather than as a marking sheet. */
+.week-row-revise {
+  display: inline-flex;
   align-items: center;
-  padding: 0 11px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  background: var(--bg-sunken);
-  border-right: 1px solid var(--border);
-}
-.sittings button {
+  gap: 7px;
+  margin: 13px 0 0 40px;
+  padding: 3px 0;
   border: 0;
   border-radius: 0;
-  border-left: 1px solid var(--border);
   background: transparent;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 7px;
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
 }
-.sittings button:first-of-type { border-left: 0; }
-.sittings button:hover:not(:disabled) { background: var(--bg-sunken); }
-/* The count is a fact about the button, not part of its name. */
-.sittings button em {
-  font-style: normal;
-  font-size: 12px;
-  color: var(--text-faint);
-  font-variant-numeric: tabular-nums;
-}
-
-/* How deep the bank goes, under the control that draws from it. Set as a
-   footnote rather than a button label: it is context for the choice above,
-   not another thing to click. */
-.week-row-bank {
-  margin: 7px 0 0 40px;
-  font-size: 12px;
-  color: var(--text-faint);
-  font-variant-numeric: tabular-nums;
-}
+.week-row-revise span { transition: transform 150ms var(--ease); }
+.week-row-revise:hover:not(:disabled) { background: transparent; color: var(--accent-deep); }
+.week-row-revise:hover:not(:disabled) span { transform: translateX(3px); }
 
 /* --- mock paper list */
 
@@ -3207,14 +3217,116 @@ button.status-bad:hover { background: var(--bad-soft); color: var(--bad); }
 .mock-review-body { flex: 1; min-width: 0; }
 .mock-revise { margin-top: 9px; }
 
+/* --- getting back, and getting to the next thing
+ *
+ * The rail answers "where else can I go" on a wide screen. On a phone it is
+ * behind a control, so the pages carry the two moves that matter on their own:
+ * one step back up to the board, and the week either side of this one.
+ */
+.focus-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 5px 13px 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.focus-back span { color: var(--accent); font-weight: 700; }
+.focus-back:hover:not(:disabled) { border-color: var(--border-strong); color: var(--text); }
+
+.notes-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 46px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border);
+}
+.notes-step {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  padding: 13px 15px;
+  background: transparent;
+  border-color: var(--border);
+}
+.notes-step-next { grid-column: 2; align-items: flex-end; text-align: right; }
+.notes-step-dir {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  font-weight: 700;
+  color: var(--accent);
+}
+.notes-step-title {
+  font-family: var(--serif);
+  font-variation-settings: var(--serif-soft);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.3;
+}
+
 /* --- narrow windows */
 
 @media (max-width: 780px) {
-  /* The rail carries `.sidebar`, so the existing rule at this width already
-     hides it — it does not need a second one of its own. */
-  .board, .notes, .drill, .mock, .mock-review { padding-left: 22px; padding-right: 22px; }
-  .tile-grid, .week-row-actions, .week-row-bank { margin-left: 0; }
+  /* The rail carries `.sidebar`, so the drawer rules at this width already
+     cover it — it does not need a second set of its own. */
+  .board, .notes, .drill, .mock, .mock-review {
+    padding-left: 20px;
+    padding-right: 20px;
+    padding-top: 30px;
+  }
+  .tile-grid, .week-row-revise { margin-left: 0; }
   .focus-btn span { display: none; }
+}
+
+/*
+ * Phone.
+ *
+ * Nothing here changes what the pages say; it changes what has room to sit
+ * side by side. Two columns of anything at 390px is two half-columns, so the
+ * readiness pair, the week head and the note stepper all become one column,
+ * and every control grows to something a thumb can actually hit.
+ */
+@media (max-width: 560px) {
+  .board-title { font-size: 25px; }
+  .board-facts { gap: 4px 13px; font-size: 11.5px; }
+
+  .board-top { gap: 12px; margin-bottom: 30px; }
+  .readiness { flex: 1 0 100%; padding: 14px 16px; }
+  .do-next { min-width: 0; }
+
+  .week-row-head { gap: 4px 12px; }
+  .week-row-title { min-width: 0; flex: 1 0 auto; width: calc(100% - 38px); }
+  /* Out from under the title and across the full width, where it reads as the
+     row's own bar rather than as a squeezed third column. */
+  .week-row-pct { width: 100%; margin-top: 9px; }
+
+  .fix-card { padding: 12px 13px; gap: 10px; }
+  .fix-actions button, .do-next button, .week-row-revise { min-height: 38px; }
+  .tile { padding: 7px 11px; font-size: 12px; }
+
+  .mock-list { display: grid; grid-template-columns: 1fr; }
+  .mock-list > * { width: 100%; }
+
+  .notes-nav { grid-template-columns: 1fr; }
+  .notes-step-next { grid-column: auto; align-items: flex-start; text-align: left; }
+
+  .drill-head { flex-direction: column; gap: 10px; }
+  .drill-nav button { min-height: 40px; flex: 1; }
+
+  .crumbs { display: none; }
+  .topbar { gap: 3px; padding: 0 6px; }
+  .brand { font-size: 13.5px; gap: 7px; padding: 4px 4px; }
+  .brand span { white-space: nowrap; }
+  .brand small { display: none; }
 }
 
 /* The five states, explained once. A colour key that is only decodable by

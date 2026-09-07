@@ -15,6 +15,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { MOCK_MINUTES, QUESTION_BY_ID, buildMockPaper, weekOf } from '@/content/focus/bank';
 import { CONCEPT_BY_ID } from '@/content/focus/concepts';
+import { displayIndex, paperSeed, shuffleChoices } from '@/content/shuffle';
 import { scoreMock, type MockAttempt } from '@/state/focus';
 
 import { QuestionCard } from './QuestionCard';
@@ -40,7 +41,17 @@ export function MockTest({
   onSubmit: (attempt: MockAttempt) => void;
   onLeave: () => void;
 }) {
-  const questions = useMemo(() => buildMockPaper(paper, avoid), [paper, avoid]);
+  /*
+   * Options are shuffled per paper rather than per sitting, because the answer
+   * sheet outlives the sitting: it is stored and re-rendered in the review, and
+   * a review that reshuffled would tell a student they picked an option that
+   * was never in that position. A different paper number still means a
+   * different order, which is what a re-sit needs.
+   */
+  const questions = useMemo(
+    () => buildMockPaper(paper, avoid).map((q) => shuffleChoices(q, paperSeed(q.id, paper))),
+    [paper, avoid],
+  );
   const [started, setStarted] = useState<number | null>(null);
   const [answers, setAnswers] = useState<(number | null)[]>(() => questions.map(() => null));
   const [at, setAt] = useState(0);
@@ -62,8 +73,10 @@ export function MockTest({
       paper,
       questionIds: questions.map((q) => q.id),
       // Whatever is on the page when time runs out is what gets marked, just
-      // as it would be if an invigilator took the sheet away.
-      answers: latest.current,
+      // as it would be if an invigilator took the sheet away. Written down as
+      // the option was authored, not as it was shown, so the sheet keeps its
+      // meaning independently of the shuffle that produced it.
+      answers: latest.current.map((a, i) => (a === null ? null : questions[i].order[a])),
       startedAt: started,
       submittedAt: Date.now(),
       seconds: SECONDS,
@@ -194,6 +207,18 @@ export function MockReview({
   onRevise: (conceptId: string) => void;
 }) {
   const { correct, total } = scoreMock(attempt);
+  // Rebuilt from the paper number, so every question comes back in the exact
+  // order it was sat in and "you picked C" still points at the same option.
+  const views = useMemo(
+    () =>
+      Object.fromEntries(
+        attempt.questionIds.map((id) => {
+          const q = QUESTION_BY_ID[id];
+          return [id, q ? shuffleChoices(q, paperSeed(id, attempt.paper)) : undefined];
+        }),
+      ),
+    [attempt.questionIds, attempt.paper],
+  );
   const minutes = Math.max(1, Math.round((attempt.submittedAt - attempt.startedAt) / 60000));
 
   // Per-week breakdown, because "6/10" says nothing about where to spend the
@@ -242,6 +267,7 @@ export function MockReview({
       {attempt.questionIds.map((id, i) => {
         const q = QUESTION_BY_ID[id];
         if (!q) return null;
+        const view = views[id];
         const chosen = attempt.answers[i];
         const right = chosen === q.answer;
         return (
@@ -250,7 +276,12 @@ export function MockReview({
               {right ? '✓' : chosen === null ? '–' : '✗'}
             </div>
             <div className="mock-review-body">
-              <QuestionCard question={q} chosen={chosen ?? undefined} reveal onChoose={() => {}} />
+              <QuestionCard
+                question={view ?? q}
+                chosen={view && chosen != null ? displayIndex(view.order, chosen) : undefined}
+                reveal
+                onChoose={() => {}}
+              />
               {!right && (
                 <button className="mock-revise" onClick={() => onRevise(q.conceptId)}>
                   Revise {CONCEPT_BY_ID[q.conceptId]?.title ?? q.conceptId} →

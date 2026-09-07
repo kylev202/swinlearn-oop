@@ -37,7 +37,7 @@ import { MockReview, MockTest } from './MockTest';
 import { NotesView } from './NotesView';
 
 /*
- * Both question-asking views carry their own `questionIds`.
+ * Both question-asking views carry their own `questionIds` and `salt`.
  *
  * Neither list may be derived during render, because both derivations read
  * the answers so far: a fix-up sorts by "least recently attempted", and a
@@ -46,35 +46,59 @@ import { NotesView } from './NotesView';
  * question 2 becomes a different question between reading it and pressing
  * Next, and the answer just given lands on whatever moved into its place.
  *
- * Capturing the list when the view opens is what makes a sitting a sitting.
+ * `salt` is the same rule one level down, for the order of the options within
+ * each question. Fresh per sitting, so coming back to a question already met
+ * means reading the options again rather than remembering it was the third.
+ *
+ * Capturing both when the view opens is what makes a sitting a sitting.
  */
 type View =
   | { name: 'board' }
   | { name: 'notes'; week: number; concept?: string }
-  | { name: 'drill'; week: number; questionIds: string[] }
-  | { name: 'fix'; conceptId: string; questionIds: string[] }
+  | { name: 'drill'; week: number; questionIds: string[]; salt: number }
+  | { name: 'fix'; conceptId: string; questionIds: string[]; salt: number }
   | { name: 'mock'; paper: number }
   | { name: 'review'; index: number };
 
 export function FocusMode({
   focus,
   student,
+  railOpen,
+  navOpen,
   onUpdate,
   onLeave,
+  onCloseNav,
 }: {
   focus: FocusState;
   student: StudentProfile;
+  /** Wide screens: whether the rail column is showing at all. */
+  railOpen: boolean;
+  /** Narrow screens: whether the rail is out as a drawer over the page. */
+  navOpen: boolean;
   onUpdate: (fn: (f: FocusState) => FocusState) => void;
   onLeave: () => void;
+  onCloseNav: () => void;
 }) {
   const [view, setView] = useState<View>({ name: 'board' });
 
-  const board = () => setView({ name: 'board' });
+  /*
+   * Every destination goes through here.
+   *
+   * Choosing something is also the signal that the drawer has done its job, so
+   * closing it belongs with the navigation rather than on each of the eleven
+   * buttons in the rail.
+   */
+  const go = (next: View) => {
+    setView(next);
+    onCloseNav();
+  };
+
+  const board = () => go({ name: 'board' });
 
   /** Open the revision note that covers a concept, scrolled to its section. */
   const revise = (conceptId: string) => {
     const found = sectionForConcept(conceptId);
-    if (found) setView({ name: 'notes', week: found.week, concept: conceptId });
+    if (found) go({ name: 'notes', week: found.week, concept: conceptId });
   };
 
   const answer = (questionId: string, choice: number, mode: DrillMode) =>
@@ -82,32 +106,34 @@ export function FocusMode({
 
   /** Open a concept drill, freezing the question order as it stands now. */
   const drillConcept = (conceptId: string) =>
-    setView({
+    go({
       name: 'fix',
       conceptId,
       questionIds: focus.fixes[conceptId]
         ? fixUpQuestions(focus, conceptId)
         : questionsOfConcept(conceptId).map((q) => q.id),
+      salt: Date.now(),
     });
 
   /**
-   * Open a week's quiz at the length the student asked for, chosen now and
-   * then fixed.
+   * Open a week's quiz: one question on each concept the week owns.
    *
-   * `rounds` is how many questions per concept — one for a sweep, three for a
-   * working session, `undefined` for the whole week. It defaults to a sweep so
-   * that "do this next" and the rail both hand out the short one.
+   * One length rather than a menu of them. A week holds sixty to eighty
+   * questions and the sitting that is always worth taking is the sweep — it
+   * names the shaky ideas, and the tiles and the mistakes list are how those
+   * then get drilled one at a time.
    *
    * The seed moves with how much of the week has already been attempted, so a
    * second sitting asks different questions about the same concepts — but it
    * is read once, here, rather than on every render.
    */
-  const drillWeek = (week: number, rounds: number | undefined = 1) => {
+  const drillWeek = (week: number) => {
     const seen = questionsOfWeek(week).filter((q) => focus.attempts[q.id]).length;
-    setView({
+    go({
       name: 'drill',
       week,
-      questionIds: weeklyQuiz(week, 1 + seen, rounds).map((q) => q.id),
+      questionIds: weeklyQuiz(week, 1 + seen, 1).map((q) => q.id),
+      salt: Date.now(),
     });
   };
 
@@ -121,9 +147,10 @@ export function FocusMode({
         title: `Week ${view.week} quiz`,
         subtitle: notes?.title ?? '',
         questions,
+        salt: view.salt,
         brief: `${questions.length} questions${
           perConcept > 1 ? `, about ${perConcept} on each` : ', one on each'
-        } concept this week that the paper can ask about. They are drawn fresh each sitting, so coming back gets you different ones. Anything you miss goes on the mistakes list, which is where the useful revision happens.`,
+        } concept this week that the paper can ask about. They are drawn fresh each sitting and the options reshuffle, so coming back gets you different ones. Anything you miss goes on the mistakes list, which is where the useful revision happens.`,
       };
     }
     if (view.name === 'fix') {
@@ -135,6 +162,7 @@ export function FocusMode({
         title: concept.title,
         subtitle: `Week ${concept.week} · ${concept.oneLiner}`,
         questions: view.questionIds.map((id) => QUESTION_BY_ID[id]).filter(Boolean),
+        salt: view.salt,
         brief: open
           ? open.revised
             ? `You have read the note. Two correct in a row clears this — you are ${open.streak} in.`
@@ -161,7 +189,8 @@ export function FocusMode({
         * destination. Switching between lessons and focus should feel like
         * changing what the panel lists, not like changing app.
         */}
-      <aside className="sidebar focus-rail">
+      {(railOpen || navOpen) && (
+      <aside className={`sidebar focus-rail${navOpen ? ' nav-open' : ''}`}>
         <div className="side-week">
           <button className="side-week-back" onClick={onLeave}>
             ← Lessons
@@ -202,7 +231,7 @@ export function FocusMode({
             <div className="lesson-group" key={week}>
               <button
                 className={`lesson-link${view.name === 'notes' && view.week === week ? ' active' : ''}`}
-                onClick={() => setView({ name: 'notes', week })}
+                onClick={() => go({ name: 'notes', week })}
               >
                 <span className="lesson-title">Week {week}</span>
                 <span className="lesson-meta">
@@ -244,7 +273,7 @@ export function FocusMode({
           <div className="lesson-group">
             <button
               className={`lesson-link${view.name === 'mock' ? ' active' : ''}`}
-              onClick={() => setView({ name: 'mock', paper: focus.nextPaper })}
+              onClick={() => go({ name: 'mock', paper: focus.nextPaper })}
             >
               <span className="lesson-title">Mock paper {focus.nextPaper}</span>
               <span className="lesson-meta">
@@ -255,16 +284,17 @@ export function FocusMode({
           </div>
         </nav>
       </aside>
+      )}
 
       <div className="focus-scroll">
         {view.name === 'board' && (
           <Board
             focus={focus}
-            onOpenNotes={(week, concept) => setView({ name: 'notes', week, concept })}
+            onOpenNotes={(week, concept) => go({ name: 'notes', week, concept })}
             onDrillWeek={drillWeek}
             onFix={drillConcept}
-            onMock={(paper) => setView({ name: 'mock', paper })}
-            onReviewMock={(index) => setView({ name: 'review', index })}
+            onMock={(paper) => go({ name: 'mock', paper })}
+            onReviewMock={(index) => go({ name: 'review', index })}
           />
         )}
 
@@ -276,6 +306,8 @@ export function FocusMode({
               <NotesView
                 key={`${view.week}-${view.concept ?? ''}`}
                 notes={notes}
+                onBack={board}
+                onOpenWeek={(week) => go({ name: 'notes', week })}
                 focus={focus}
                 student={student}
                 highlightConcept={view.concept}
@@ -305,7 +337,7 @@ export function FocusMode({
             onSubmit={(attempt) => {
               onUpdate((f) => recordMock(f, attempt));
               // The index is where recordMock will have appended it.
-              setView({ name: 'review', index: focus.mocks.length });
+              go({ name: 'review', index: focus.mocks.length });
             }}
             onLeave={board}
           />

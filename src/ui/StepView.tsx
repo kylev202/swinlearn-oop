@@ -15,6 +15,7 @@
 import { useMemo } from 'react';
 import type { Block } from '@/content/types';
 import { personalize, type ResolvedTokens, type StudentProfile } from '@/content/personalize';
+import { blockSeed, shuffleChoices } from '@/content/shuffle';
 import { parse } from '@/engine/parser';
 import { buildUml } from '@/tools/uml';
 import type { StepState } from '@/state/progress';
@@ -74,12 +75,15 @@ export function askStatus(blocks: Block[], saved: StepState): { total: number; o
 }
 
 export function StepView({
+  stepId,
   blocks,
   tokens,
   student,
   saved,
   onPatch,
 }: {
+  /** Seeds the option order of every quiz and predict block on the step. */
+  stepId: string;
   blocks: Block[];
   tokens: ResolvedTokens;
   student: StudentProfile;
@@ -91,6 +95,7 @@ export function StepView({
       {blocks.map((b, i) => (
         <BlockView
           key={i}
+          stepId={stepId}
           block={b}
           index={i}
           tokens={tokens}
@@ -104,6 +109,7 @@ export function StepView({
 }
 
 function BlockView({
+  stepId,
   block,
   index,
   tokens,
@@ -111,6 +117,7 @@ function BlockView({
   saved,
   onPatch,
 }: {
+  stepId: string;
   block: Block;
   index: number;
   tokens: ResolvedTokens;
@@ -150,6 +157,7 @@ function BlockView({
       return (
         <PredictBlock
           block={block}
+          seed={blockSeed(stepId, index)}
           code={p(block.code)}
           chosen={saved.predict?.[index]}
           onChoose={(choice) => onPatch({ predict: { ...(saved.predict ?? {}), [index]: choice } })}
@@ -229,19 +237,31 @@ function BlockView({
       );
 
     case 'quiz': {
+      /*
+       * Options are shown in a permuted order, keyed to where this block sits
+       * rather than to the visit, because the choice is saved: a student who
+       * comes back to a finished step has to see the same four options in the
+       * same four places they answered against. Fixed per block is enough to
+       * do the job anyway — what makes the answer guessable is every question
+       * on the step putting it first, not one question keeping it in place.
+       */
+      const view = shuffleChoices(block, blockSeed(stepId, index));
       const chosen = saved.quiz?.[index];
       const answered = chosen !== undefined;
+      const shown = answered ? view.order.indexOf(chosen) : undefined;
       return (
         <div className="quiz">
-          <div className="quiz-q">{p(block.question)}</div>
-          {block.options.map((opt, i) => {
-            const cls = !answered ? '' : i === block.answer ? ' correct' : chosen === i ? ' wrong' : '';
+          <div className="quiz-q">{p(view.question)}</div>
+          {view.options.map((opt, i) => {
+            const cls = !answered ? '' : i === view.answer ? ' correct' : shown === i ? ' wrong' : '';
             return (
               <button
                 key={i}
                 className={`quiz-opt${cls}`}
                 disabled={answered}
-                onClick={() => onPatch({ quiz: { ...(saved.quiz ?? {}), [index]: i } })}
+                // Saved as the option was authored, so the record survives any
+                // later change to how the step is shuffled.
+                onClick={() => onPatch({ quiz: { ...(saved.quiz ?? {}), [index]: view.order[i] } })}
               >
                 <span className="quiz-marker">{String.fromCharCode(65 + i)}</span>
                 <span>

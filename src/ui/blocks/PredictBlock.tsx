@@ -12,6 +12,7 @@
 import { useMemo } from 'react';
 import type { Predict, Tool } from '@/content/types';
 import type { StudentProfile } from '@/content/personalize';
+import { shuffleChoices } from '@/content/shuffle';
 import { runProgram } from '@/engine/runner';
 
 import { highlightCsharp } from '../CodeBlock';
@@ -31,20 +32,31 @@ function OptionText({ text }: { text: string }) {
 
 export function PredictBlock({
   block,
+  seed,
   code,
   chosen,
   onChoose,
   student,
 }: {
   block: Predict;
+  /**
+   * Fixes which order the options are offered in. Comes from where the block
+   * sits rather than from the visit, because a committed prediction is saved
+   * and shown back as "you said B" — that has to keep pointing at the same
+   * option on every later visit to the step.
+   */
+  seed: number;
   /** Personalised source — the tokens are substituted by the caller. */
   code: string;
+  /** The option as authored, which is how a prediction is recorded. */
   chosen?: number;
   onChoose: (choice: number) => void;
   student: StudentProfile;
 }) {
   const tool: Tool = block.tool ?? 'console';
+  const view = useMemo(() => shuffleChoices(block, seed), [block, seed]);
   const answered = chosen !== undefined;
+  const shown = answered ? view.order.indexOf(chosen) : undefined;
 
   const result = useMemo(
     () =>
@@ -72,12 +84,12 @@ export function PredictBlock({
       </pre>
 
       <div className="predict-opts" role="group" aria-label="Your prediction">
-        {block.options.map((opt, i) => {
+        {view.options.map((opt, i) => {
           const state = !answered
             ? ''
-            : i === block.answer
+            : i === view.answer
               ? ' correct'
-              : chosen === i
+              : shown === i
                 ? ' wrong'
                 : ' faded';
           return (
@@ -85,7 +97,7 @@ export function PredictBlock({
               key={i}
               className={`predict-opt${state}`}
               disabled={answered}
-              onClick={() => onChoose(i)}
+              onClick={() => onChoose(view.order[i])}
             >
               <span className="predict-marker">{String.fromCharCode(65 + i)}</span>
               <OptionText text={opt} />
@@ -107,11 +119,11 @@ export function PredictBlock({
               {right ? 'You called it' : 'Not what happens'}
             </span>
             <span className="verdict-said">
-              you said <b>{String.fromCharCode(65 + chosen)}</b>
+              you said <b>{String.fromCharCode(65 + (shown ?? 0))}</b>
               {!right && (
                 <>
                   {' · it was '}
-                  <b>{String.fromCharCode(65 + block.answer)}</b>
+                  <b>{String.fromCharCode(65 + view.answer)}</b>
                 </>
               )}
             </span>
@@ -120,7 +132,7 @@ export function PredictBlock({
           {!right && block.why?.[chosen] && (
             <div className="predict-why">
               <div className="predict-why-label">
-                What {String.fromCharCode(65 + chosen)} would have needed
+                What {String.fromCharCode(65 + (shown ?? 0))} would have needed
               </div>
               <Markdown md={block.why[chosen]} />
             </div>

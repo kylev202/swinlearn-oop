@@ -13,7 +13,7 @@
 
 import { CONCEPTS, FOCUS_WEEKS } from '@/content/focus/concepts';
 import { CONCEPT_BY_ID } from '@/content/focus/concepts';
-import { BANK, MOCK_MINUTES, SITTINGS, questionsOfWeek, sittingLength } from '@/content/focus/bank';
+import { BANK, MOCK_MINUTES } from '@/content/focus/bank';
 import { notesOfWeek } from '@/content/focus/notes';
 import {
   MASTERY_LABEL,
@@ -37,8 +37,7 @@ export function Board({
 }: {
   focus: FocusState;
   onOpenNotes: (week: number, conceptId?: string) => void;
-  /** `rounds` is questions per concept; omitted means the short sweep. */
-  onDrillWeek: (week: number, rounds?: number) => void;
+  onDrillWeek: (week: number) => void;
   onFix: (conceptId: string) => void;
   onMock: (paper: number) => void;
   onReviewMock: (index: number) => void;
@@ -200,32 +199,19 @@ export function Board({
             </div>
 
             {/*
-              * Three lengths rather than one button.
+              * One way out of a week row, not five.
               *
-              * The bank holds sixty to eighty questions a week, and the sitting
-              * a student wants depends entirely on how far out the test is: a
-              * sweep to find the gaps, a longer set to close them, the whole
-              * week when it is the one still failing. Each draw is fresh, so
-              * none of them is the same quiz twice.
+              * The tiles above already answer "what is shaky here", and a tile
+              * is itself the way into questions on that idea. What the row was
+              * missing was somewhere to *read*, so that is the one thing left:
+              * a single link, in line with the tiles. Quiz lengths, bank
+              * counts and a second notes button were all noise stacked under
+              * every week, five times down the page.
               */}
-            <div className="week-row-actions">
-              <button onClick={() => onOpenNotes(week)}>Revision notes</button>
-              {/* One control with three lengths, not three more buttons: the
-                  choice here is how long a sitting to take, and a joined group
-                  says that where four peers in a row would not. */}
-              <div className="sittings" role="group" aria-label={`Week ${week} quiz length`}>
-                <span className="sittings-label">Quiz</span>
-                {SITTINGS.map((s) => (
-                  <button key={s.id} title={s.blurb} onClick={() => onDrillWeek(week, s.rounds)}>
-                    {s.label}
-                    <em>{sittingLength(week, s.rounds)}</em>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="week-row-bank">
-              Drawn fresh each sitting from {questionsOfWeek(week).length} questions on this week.
-            </div>
+            <button className="week-row-revise" onClick={() => onOpenNotes(week)}>
+              Revise the Week {week} notes
+              <span aria-hidden>&#8594;</span>
+            </button>
           </div>
         );
       })}
