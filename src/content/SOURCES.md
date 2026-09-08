@@ -8,7 +8,7 @@ before doing any content work; update it after finishing a week.
 
 The resource files themselves are never copied into this repo.
 
-## Done — all 5 weeks of currently-provided resources are built
+## Done — all 6 weeks of currently-provided resources are built
 
 | Resource file | Used in | Notes |
 |---|---|---|
@@ -27,11 +27,63 @@ The resource files themselves are never copied into this repo.
 | `Lecture 5.md` (Week 5: Interfaces, Exceptions & Midterm Review) | `week5.ts` | Fully used, including the Mock-Test Walkthrough table (folded into `w5-midterm`'s scenario quizzes) and the midterm logistics (date/format/weight/coverage). |
 | `OOP Lab5.pdf` | `week5.ts` | Task 5.1 (Drawing aggregation of Shape, Selected/DrawOutline, multi-constructor `this(...)` chaining) built as specified. **Task 5.2 reshaped:** since `week4.ts` already built the IdentifiableObject→GameObject→Item hierarchy Task 5.2 asks for (see Lab4.pdf note above), `w5-task52` is framed as "write the official Iteration-4 tests against what you already built" rather than redoing the refactor — it does add the 4 new Item-level tests (Test Item is Identifiable/Short Description/Full Description/Privilege Escalation) that Lab5.pdf introduces, which Task 4.2 never asked for, plus re-verifying the 5 Inventory tests. `PrivilegeEscalation`'s real behaviour (pin = last 4 digits of student ID → returns `"your tutorial ID"`, matching Lab5.pdf page 9 exactly) was discovered here and required **fixing** `week4.ts`'s own `PrivilegeEscalation`, which had invented different behaviour (just "add an identifier") before this file was read. |
 | `Quiz 5.md` (14 Q&A) | `week5.ts` | All 14 questions used: Q1, Q2, Q3, Q4, Q5, Q6, Q7, Q8, Q9, Q10, Q11, Q12, Q13, Q14 each appear as a quiz or predict block, cited by number. |
+| `Lecture 6.md` (Week 6: Responsibility-Driven Design) | `week6.ts` | Fully used — the three RDD steps, CRC cards, knows/does, cohesion/coupling, the five UML relationship types and the opt/alt/loop sequence fragments. **The recorded lecture is not about RDD at all** (see the note below); the W6a/W6b slide decks carried in this file are the real source. The chess walkthrough and the Hospital Management System activity both appear — HMS as checkpoint questions rather than a build, since the activity has no code in it. |
+| `OOP Lab6.pdf` (Task 6.1 only) | `week6.ts` | Fully covered: all 27 numbered steps, staged the way the PDF stages them (subclass that adds nothing → virtual/override → move `_width`/`_height` down → abstract → MyLine). **Step 8.4 of the PDF has a typo** — it says the C-key sets `kindToAdd` to `ShapeKind.Rectangle`, meaning `Circle`; taught as a trap, not copied. There is no Task 6.2 this week. |
+| `Quiz 6.md` (14 Q&A) | `week6.ts` | All 14 used, cited by number: Q4, Q7, Q10, Q11, Q2 in the RDD lesson; Q13, Q8, Q12, Q3, Q1, Q5, Q14 in the collaboration/cohesion/coupling lesson; Q6, Q9 in the UML lesson. `week6.test.ts` asserts every one of Q1–Q14 is cited somewhere, so dropping one fails the build. |
 
 ## Engine bugs found and fixed while authoring content
 
 - **`checkFieldAccess`/`canAccess` (found in week4.ts):** used the receiver's *runtime* class (e.g. `Item`) as the "owner" when checking protected/private access, instead of the class that actually *declares* the field (e.g. `GameObject`). Broke completely valid C# — `this.name = name;` inside `GameObject`'s own constructor, called via `new Item(...)`, was rejected as "'name' is protected inside 'Item'". Fixed by tracking the actual declaring class through the ancestry search. Covered by `week4.test.ts`'s GameObject/Item tests — a regression here fails those with a "protected inside" error again.
 - **Custom exception classes (found in week5.ts, not fixed — scoped around instead):** `class X : Exception { public X(string m) : base(m) {} }` parses and the class can be thrown/caught by its own name, but `base(m)` never reaches a real `System.Exception`, so `.Message` throws "no member called Message". `Exception` and friends are handled as a special built-in `{k:'exception'}` heap kind, not a real registered `ClassInfo`, so user subclasses of it don't get real inheritance semantics. `week5.ts`'s exceptions lesson teaches this pattern (Quiz 5 Q1) as a read-only code example only — every graded/predicted exception exercise throws a built-in exception type instead, which works correctly. Worth a proper fix if a future week needs custom exceptions to actually run.
+
+- **Nested types (found in week6.ts, not fixed — scoped around):** the parser
+  rejects any type declared inside another with "Nested types are not supported
+  in this playground." Lab6.pdf step 8.1 asks for exactly that — a `private enum
+  ShapeKind` inside class `Program`, and makes a teaching point of why it belongs
+  there. `week6.ts` shows it nested as a **read-only** code example (the shape to
+  write in Visual Studio) with a callout saying it will not run here, and every
+  runnable Week 6 example declares the enum at the top level. `week6.test.ts`
+  allows exactly one code block to fail to parse, and only with that message.
+- **`override` is not enforced at dispatch (found in week6.ts, not fixed):** a
+  subclass method written without `override` still dispatches to the subclass,
+  so C#'s method *hiding* semantics are not modelled. No output check can
+  therefore prove a student typed `override`; every override requirement in
+  `week6.ts` is a `structure` check instead. Worth a real fix only if a future
+  week needs to teach hiding as distinct from overriding.
+- **SplashKit geometry added for Week 6 (`splashkit.ts`):** `CircleAt`,
+  `PointInCircle`, `LineFrom` and `PointOnLine`, because Lab6.pdf's own hint
+  sends students to them for `MyCircle.IsAt` and `MyLine.IsAt`. `FillCircle`,
+  `DrawCircle` and `DrawLine` gained the struct-taking overloads to match.
+  **They are deliberately not registered as type names** — `builtins.construct`
+  and `staticTypes` are consulted *before* the student's own classes, and
+  `class Circle : Shape` is something week4.ts actively teaches, so claiming
+  `Circle` broke two Week 4 predict blocks until it was reverted. The structs
+  still travel fine as values, which is all the lab needs.
+
+### Week 6's lecture recording is a trap for a future session
+
+`Lecture 6.md` says so at the top, and it is worth repeating here: the recorded
+Week 6 lecture is **not** about RDD. It was spent on midterm logistics, finishing
+Week 5's polymorphism, and live-coding **Week 7's** save/load-to-file feature.
+Dr Vo says RDD gets discussed properly in Week 7, after the break, and that
+"the theory of week six is not included in your midterm test". So:
+
+- The **slide decks** (W6a theory, W6b activity), transcribed into `Lecture 6.md`,
+  are the authoritative source for the RDD content, and that is what `week6.ts` is
+  built from.
+- `week6.ts` repeats the not-on-the-midterm warning in two places a student will
+  actually hit (the first callout of lesson 1, and the closing callout of the
+  checkpoint), and `week6.test.ts` asserts the word "midterm" appears in the week.
+- The live-coded save/load material is **Week 7's**, and is deliberately not built
+  here. It is the obvious starting point when `Lecture 7` arrives.
+
+### Concept Focus was deliberately not touched for Week 6
+
+Concept focus covers Weeks 1–5, which is exactly what the midterm examines,
+and Week 6's theory is explicitly excluded from that test. Adding Week 6 to the
+bank would dilute a study mode whose whole value is that it matches the exam
+scope. `focus/concepts.ts` still holds 34 concepts and the bank still holds 353
+questions; neither changed.
 
 ## Concept Focus — the midterm study mode
 
@@ -117,19 +169,27 @@ a regression fails `week4.test.ts`.
 
 ## Pending
 
-- **`OOP Lab6.pdf`** appeared in the resources folder on 2026-09-07 and has
-  **not** been read or built into any lesson. There is no Lecture 6 or Quiz 6
-  alongside it yet. Concept Focus is scoped to Weeks 1-5 (that is the midterm's
-  own coverage) so it needs no change for Week 6; a `week6.ts` lesson module
-  plus a line in `WEEKS` in `src/ui/App.tsx` is what a Week 6 build would need.
+- **Week 7** is the next build, and two things are already known about it from
+  Week 6's own material: `Lecture 6.md` records that Dr Vo live-coded Week 7's
+  **save/load-to-file** feature (writing shape count, colour and coordinates to
+  a text file, reading them back with `try`/`catch`/`finally` and a custom
+  `InvalidDataException`), and said RDD would be **discussed properly in Week 7**
+  after the break. Neither is built. Note the custom-exception engine gap above
+  before planning the file-handling lesson — `InvalidDataException` as a
+  user-defined subclass of `Exception` does not currently work end to end.
+- **`Swin-Adventure Requirements.pdf`**'s full command-keyword table
+  (move/look/pickup/put/inventory/quit) and Room/Bag/General-Thing spec are
+  still unbuilt, unchanged since Week 5.
 
-Everything else in the folder has been used. On the next content session: list
-the resources folder, diff its filenames against the tables above, and only read
-what's new.
+Everything else in the folder has been used, through Week 6. On the next content
+session: list the resources folder, diff its filenames against the tables above,
+and only read what's new.
 
-## Scope hints worth knowing before continuing past Week 5
+## Scope hints worth knowing before continuing past Week 6
 
 - `src/ui/Home.tsx`'s `PLANNED` array is now empty (all provided weeks are built) and the "Coming next" section hides itself when it is — add back to it, in the same `{n, title, note}` shape, once real material for a new week exists.
 - `src/tools/uml.ts` and `src/tools/sequence.ts` doc comments cite specific quiz question numbers they were built to serve — read these comments before assuming a tool needs new work for a future week.
-- `src/content/personalize.ts` documents every personalization rule found across Labs 2–5 (`color2`, `color4`, `shapeParam`, `outlineWidth`, `resetLiteral`). A Lab 5.2 "pin" is not a separate token — it reuses the existing `XXXX` (last four digits of student ID) token, since that is literally what the pin is.
-- The real unit's own numbering: app "week N" = Lecture N + Lab N + Quiz N, except app week 2 additionally absorbs Lecture 1 (there is no Lab 1). If a Week 6 resource set arrives, expect it to follow the same pattern.
+- `src/content/personalize.ts` documents every personalization rule found across Labs 2–6 (`color2`, `color4`, `shapeParam`, `outlineWidth`, `circleRadius`, `lineCount`, `resetLiteral`). A Lab 5.2 "pin" is not a separate token — it reuses the existing `XXXX` (last four digits of student ID) token, since that is literally what the pin is. Lab 6.1's rectangle default (100 + XX) is the same number as `shapeParam` (1 followed by XX), so it reuses that token rather than adding a duplicate; the circle radius (50 + XX) and the parallel-line count (X, with 0 read as 5) are new.
+- The real unit's own numbering: app "week N" = Lecture N + Lab N + Quiz N, except app week 2 additionally absorbs Lecture 1 (there is no Lab 1). Week 6 followed this pattern exactly; expect Week 7 to as well.
+- Blocks are **not** all personalised by `StepView.tsx`: `text`, `callout`, `code`, `runnable`, `predict`, `umlSpec`, `table`, `compare` and `quiz` run through `personalize()`, but **`parsons` and `recall` do not** — a `{{token}}` in either reaches the student as literal braces. `week6.test.ts` asserts this.
+- The markdown renderer does **no HTML-entity decoding**, so `&ndash;` renders literally. Use the real character. One instance of this had been sitting in `week5.ts`'s closing callout and was fixed alongside Week 6.

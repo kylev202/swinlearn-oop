@@ -237,6 +237,61 @@ export function installSplashKit(host: BuiltinHost): SplashKitRuntime {
     });
   }
 
+  function makeCircle(x: number, y: number, r: number): Value {
+    return heap.allocRef({
+      k: 'struct', type: 'Circle',
+      fields: new Map<string, Value>([
+        ['Center', makePoint(x, y)], ['Radius', mkDouble(r)],
+      ]),
+    });
+  }
+
+  function circleOf(v: Value): { x: number; y: number; r: number } | undefined {
+    if (v.k !== 'ref') return undefined;
+    const o = heap.tryGet(v.id);
+    if (o?.k !== 'struct' || o.type !== 'Circle') return undefined;
+    const centre = o.fields.get('Center');
+    const c = centre ? pointOf(centre) : undefined;
+    const rf = o.fields.get('Radius');
+    const r = rf && (rf.k === 'int' || rf.k === 'double' || rf.k === 'float') ? rf.v : 0;
+    return { x: c?.x ?? 0, y: c?.y ?? 0, r };
+  }
+
+  function makeLine(x1: number, y1: number, x2: number, y2: number): Value {
+    return heap.allocRef({
+      k: 'struct', type: 'Line',
+      fields: new Map<string, Value>([
+        ['StartPoint', makePoint(x1, y1)], ['EndPoint', makePoint(x2, y2)],
+      ]),
+    });
+  }
+
+  function lineOf(v: Value): { x1: number; y1: number; x2: number; y2: number } | undefined {
+    if (v.k !== 'ref') return undefined;
+    const o = heap.tryGet(v.id);
+    if (o?.k !== 'struct' || o.type !== 'Line') return undefined;
+    const sp = o.fields.get('StartPoint');
+    const ep = o.fields.get('EndPoint');
+    const a = sp ? pointOf(sp) : undefined;
+    const b = ep ? pointOf(ep) : undefined;
+    return { x1: a?.x ?? 0, y1: a?.y ?? 0, x2: b?.x ?? 0, y2: b?.y ?? 0 };
+  }
+
+  /** Shortest distance from a point to a line *segment*, not the infinite line. */
+  function distanceToSegment(
+    px: number, py: number,
+    x1: number, y1: number, x2: number, y2: number,
+  ): number {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const lenSq = dx * dx + dy * dy;
+    // A zero-length segment is really a point, so fall back to point-to-point.
+    const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lenSq));
+    const cx = x1 + t * dx;
+    const cy = y1 + t * dy;
+    return Math.sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
+  }
+
   let randomSeed = 0x9e3779b9;
   const rand = () => {
     randomSeed ^= randomSeed << 13; randomSeed ^= randomSeed >>> 17; randomSeed ^= randomSeed << 5;
@@ -359,9 +414,21 @@ export function installSplashKit(host: BuiltinHost): SplashKitRuntime {
       case 'FillCircle':
       case 'DrawCircle': {
         requireWindow(member, pos);
+        const color = toRGBA(args[0]);
+        // Overload: (color, Circle) or (color, x, y, radius)
+        if (args.length === 2) {
+          const c = circleOf(args[1]);
+          if (c) {
+            state.pending.push({
+              c: member === 'FillCircle' ? 'fillCircle' : 'drawCircle',
+              color, x: c.x, y: c.y, r: c.r,
+            });
+            return VOID;
+          }
+        }
         state.pending.push({
           c: member === 'FillCircle' ? 'fillCircle' : 'drawCircle',
-          color: toRGBA(args[0]),
+          color,
           x: num(args[1], pos), y: num(args[2], pos), r: num(args[3], pos),
         });
         return VOID;
@@ -379,8 +446,17 @@ export function installSplashKit(host: BuiltinHost): SplashKitRuntime {
       }
       case 'DrawLine': {
         requireWindow(member, pos);
+        const color = toRGBA(args[0]);
+        // Overload: (color, Line) or (color, x1, y1, x2, y2)
+        if (args.length === 2) {
+          const l = lineOf(args[1]);
+          if (l) {
+            state.pending.push({ c: 'line', color, ...l });
+            return VOID;
+          }
+        }
         state.pending.push({
-          c: 'line', color: toRGBA(args[0]),
+          c: 'line', color,
           x1: num(args[1], pos), y1: num(args[2], pos),
           x2: num(args[3], pos), y2: num(args[4], pos),
         });
@@ -432,6 +508,42 @@ export function installSplashKit(host: BuiltinHost): SplashKitRuntime {
         const r = rectOf(args[1]);
         if (!p || !r) return mkBool(false);
         return mkBool(p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h);
+      }
+      // Lab 6.1's own hint sends students to these four when writing
+      // MyCircle.IsAt and MyLine.IsAt, so the playground has to answer them.
+      case 'CircleAt':
+        // Overload: (Point2D, radius) or (x, y, radius).
+        if (args.length === 2) {
+          const at = pointOf(args[0]);
+          return makeCircle(at?.x ?? 0, at?.y ?? 0, num(args[1], pos));
+        }
+        return makeCircle(num(args[0], pos), num(args[1], pos), num(args[2], pos));
+      case 'PointInCircle': {
+        const p = pointOf(args[0]);
+        // Overload: (Point2D, Circle) or (Point2D, x, y, radius).
+        const c = args.length === 2
+          ? circleOf(args[1])
+          : { x: num(args[1], pos), y: num(args[2], pos), r: num(args[3], pos) };
+        if (!p || !c) return mkBool(false);
+        const dx = p.x - c.x;
+        const dy = p.y - c.y;
+        return mkBool(Math.sqrt(dx * dx + dy * dy) <= c.r);
+      }
+      case 'LineFrom':
+        // Overload: (Point2D, Point2D) or (x1, y1, x2, y2).
+        if (args.length === 2) {
+          const a = pointOf(args[0]);
+          const b = pointOf(args[1]);
+          return makeLine(a?.x ?? 0, a?.y ?? 0, b?.x ?? 0, b?.y ?? 0);
+        }
+        return makeLine(num(args[0], pos), num(args[1], pos), num(args[2], pos), num(args[3], pos));
+      case 'PointOnLine': {
+        const p = pointOf(args[0]);
+        const l = lineOf(args[1]);
+        if (!p || !l) return mkBool(false);
+        // SplashKit allows a small proximity rather than demanding the point sit
+        // exactly on the segment, which no mouse click ever would.
+        return mkBool(distanceToSegment(p.x, p.y, l.x1, l.y1, l.x2, l.y2) <= 1.0);
       }
       case 'RandomColor': {
         const name = COLOR_NAMES[Math.floor(rand() * COLOR_NAMES.length)];
@@ -600,6 +712,15 @@ export function installSplashKit(host: BuiltinHost): SplashKitRuntime {
   }
 
   return {
+    /*
+     * Deliberately NOT registering 'Circle' or 'Line' as shimmed types, even
+     * though CircleAt and LineFrom hand back structs of those names. Both
+     * `construct` and this list are consulted before the student's own classes,
+     * and `class Circle : Shape` is one of the most common things a student in
+     * this unit writes — week4.ts teaches it. The structs still travel fine as
+     * values, which is all Lab 6.1 needs: SplashKit.PointInCircle(pt,
+     * SplashKit.CircleAt(...)) never names the type.
+     */
     staticTypes: ['SplashKit', 'Color', 'MouseButton', 'KeyCode', 'Window', 'Point2D', 'Rectangle'],
     state,
     readStatic, writeStatic, callStatic, construct,

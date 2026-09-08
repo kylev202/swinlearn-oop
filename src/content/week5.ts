@@ -2107,7 +2107,7 @@ public class Program
               t: 'callout',
               tone: 'key',
               title: 'Where to go from here',
-              md: 'Ten questions, twenty minutes, closed book, Weeks 1&ndash;5. **Concept focus** on the home page holds around 350 questions across those five weeks, revision notes for each, mock papers under a real clock, and a list of everything you have got wrong that will not clear until you have revised it and answered two more on the same idea correctly. That list is the most useful thing in this app in the days before the test.',
+              md: 'Ten questions, twenty minutes, closed book, Weeks 1–5. **Concept focus** on the home page holds around 350 questions across those five weeks, revision notes for each, mock papers under a real clock, and a list of everything you have got wrong that will not clear until you have revised it and answered two more on the same idea correctly. That list is the most useful thing in this app in the days before the test.',
             },
           ],
         },

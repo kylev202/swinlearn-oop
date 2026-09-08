@@ -16,6 +16,7 @@ import { week2 } from '../week2';
 import { week3 } from '../week3';
 import { week4 } from '../week4';
 import { week5 } from '../week5';
+import { week6 } from '../week6';
 import type { Block } from '../types';
 import {
   type Choices,
@@ -32,7 +33,7 @@ import {
 /** Every quiz and predict block in the lessons, with where it sits. */
 function lessonChoices(): { stepId: string; index: number; block: Block }[] {
   const out: { stepId: string; index: number; block: Block }[] = [];
-  for (const week of [week2, week3, week4, week5]) {
+  for (const week of [week2, week3, week4, week5, week6]) {
     for (const lesson of week.lessons) {
       for (const step of lesson.steps) {
         step.blocks.forEach((block, index) => {

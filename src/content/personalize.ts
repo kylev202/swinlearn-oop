@@ -7,6 +7,8 @@
  *   Lab 4.1 #12  Azure if first name A-K, else Chocolate; param = 1XX
  *   Lab 5.1 #19  outline (5 + X) px wide    (X = last digit)
  *   Lab 5.2      PrivilegeEscalation pin    (last four of student ID)
+ *   Lab 6.1 #18  MyRectangle default (100+XX) square, MyCircle radius (50+XX)
+ *   Lab 6.1 #26  up to X parallel lines     (X = last digit, 0 reads as 5)
  *
  * Students routinely get these wrong, or lose time re-deriving them. Entered
  * once, they render into every task statement, seed file and generated test.
@@ -30,10 +32,14 @@ export interface ResolvedTokens {
   color2: string;
   /** Lab 4.1 rule: first letter A-K -> Azure, else Chocolate. */
   color4: string;
-  /** Lab 2.2 / 4.1: shape constructor argument, 1 followed by last two digits. */
+  /** Lab 2.2 / 4.1 / 6.1: shape size argument — 1 followed by XX, i.e. 100 + XX. */
   shapeParam: string;
   /** Lab 5.1: black outline width in pixels. */
   outlineWidth: string;
+  /** Lab 6.1: MyCircle's default radius, 50 + XX. */
+  circleRadius: string;
+  /** Lab 6.1: how many parallel lines the L key draws. X, but 0 reads as 5. */
+  lineCount: string;
   /** Lab 2.1 #12, exactly as the PDF writes it. */
   resetLiteral: string;
   /** Whether that literal actually fits in a C# int (it does not). */
@@ -71,6 +77,8 @@ export function resolveTokens(profile: StudentProfile): ResolvedTokens {
     color4: letter <= 'K' ? 'Azure' : 'Chocolate',
     shapeParam: `1${XX}`,
     outlineWidth: String(5 + Number(X)),
+    circleRadius: String(50 + Number(XX)),
+    lineCount: X === '0' ? '5' : X,
     resetLiteral,
     resetLiteralFitsInt: Number(resetLiteral) <= INT_MAX,
   };
