@@ -315,6 +315,7 @@ export function FocusMode({
                   onUpdate((f) => markSectionRead(f, sectionId, conceptIds))
                 }
                 onDrill={drillConcept}
+                onDrillWeek={drillWeek}
               />
             );
           })()}

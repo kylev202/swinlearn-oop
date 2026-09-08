@@ -3240,11 +3240,13 @@ button.status-bad:hover { background: var(--bad-soft); color: var(--bad); }
 .focus-back span { color: var(--accent); font-weight: 700; }
 .focus-back:hover:not(:disabled) { border-color: var(--border-strong); color: var(--text); }
 
+.notes-test-cta { margin-top: 40px; }
+
 .notes-nav {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin-top: 46px;
+  margin-top: 30px;
   padding-top: 22px;
   border-top: 1px solid var(--border);
 }

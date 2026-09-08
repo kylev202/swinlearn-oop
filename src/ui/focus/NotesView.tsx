@@ -29,6 +29,7 @@ export function NotesView({
   onOpenWeek,
   onMarkRead,
   onDrill,
+  onDrillWeek,
 }: {
   notes: WeekNotes;
   focus: FocusState;
@@ -39,6 +40,7 @@ export function NotesView({
   onOpenWeek: (week: number) => void;
   onMarkRead: (sectionId: string, conceptIds: string[]) => void;
   onDrill: (conceptId: string) => void;
+  onDrillWeek: (week: number) => void;
 }) {
   const tokens = useMemo(() => resolveTokens(student), [student]);
   const target = useRef<HTMLDivElement | null>(null);
@@ -137,6 +139,19 @@ export function NotesView({
           </section>
         );
       })}
+
+      {/* The notes are revision for a test — reading them should end with an
+          offer to sit it, not just with the next page to read. */}
+      <div className="do-next notes-test-cta">
+        <div className="do-next-label">Ready for this week</div>
+        <p className="do-next-why">
+          Take the Week {notes.week} quiz — one question on each concept above, drawn fresh
+          each sitting.
+        </p>
+        <button className="primary" onClick={() => onDrillWeek(notes.week)}>
+          Take the Week {notes.week} quiz &#8594;
+        </button>
+      </div>
 
       {/* Reading a week's notes usually ends with reading the next week's, so
           the two neighbours are here rather than only in the rail. */}
