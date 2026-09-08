@@ -153,6 +153,51 @@ describe('concept focus', () => {
     });
   });
 
+  it('re-offers the read button after a second miss, once the first read already ticked it', async () => {
+    await enterFocus();
+
+    fireEvent.click(page().getByRole('button', { name: /Start the quiz/ }));
+    await answer(false);
+    await page().findByText(/Not quite/);
+    fireEvent.click(page().getByRole('button', { name: 'Leave' }));
+
+    fireEvent.click(await page().findByRole('button', { name: 'Read the note' }));
+    const banner = await page().findByText(/This is the one you missed/);
+    const section = within(banner.closest('.note-section') as HTMLElement);
+    fireEvent.click(section.getByRole('button', { name: 'I have read this' }));
+    expect(await section.findByText('✓ Marked as revised')).toBeInTheDocument();
+
+    // Miss the same concept again — the state layer reopens the reading
+    // requirement (`revised` goes back to false), so the board must offer
+    // "Read the note" again rather than "Re-read the note".
+    fireEvent.click(rail().getByRole('button', { name: /Readiness board/ }));
+    fireEvent.click(await page().findByRole('button', { name: 'Test me' }));
+    await answer(false);
+    fireEvent.click(page().getByRole('button', { name: 'Leave' }));
+    expect(await page().findByRole('button', { name: 'Read the note' })).toBeInTheDocument();
+
+    // And critically, the note section itself must offer the button again —
+    // not stay stuck showing the checkmark from the first read with no way
+    // to satisfy the reopened requirement.
+    fireEvent.click(page().getByRole('button', { name: 'Read the note' }));
+    const bannerAgain = await page().findByText(/This is the one you missed/);
+    const sectionAgain = within(bannerAgain.closest('.note-section') as HTMLElement);
+    expect(sectionAgain.getByRole('button', { name: 'I have read this' })).toBeInTheDocument();
+    expect(sectionAgain.queryByText('✓ Marked as revised')).not.toBeInTheDocument();
+
+    // Reading it again should tick it once more, and the fix-up can still close.
+    fireEvent.click(sectionAgain.getByRole('button', { name: 'I have read this' }));
+    expect(await sectionAgain.findByText('✓ Marked as revised')).toBeInTheDocument();
+    fireEvent.click(rail().getByRole('button', { name: /Readiness board/ }));
+    fireEvent.click(await page().findByRole('button', { name: 'Test me' }));
+    await passDrill(2);
+    fireEvent.click(page().getByRole('button', { name: 'Leave' }));
+
+    await waitFor(() => {
+      expect(page().queryByText(/Mistakes to clear/)).not.toBeInTheDocument();
+    });
+  });
+
   it('sits a mock paper against a real clock and marks it', async () => {
     await enterFocus();
 

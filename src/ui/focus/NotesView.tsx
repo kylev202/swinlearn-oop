@@ -75,6 +75,9 @@ export function NotesView({
       {notes.sections.map((section) => {
         const read = focus.readSections[section.id];
         const fixes = section.concepts.filter((c) => focus.fixes[c]);
+        // A miss after the note was last read reopens the reading requirement
+        // (see recordAnswer), so the checkmark must not outlive that reset.
+        const needsRead = fixes.some((c) => !focus.fixes[c]!.revised);
         const isTarget = !!highlightConcept && section.concepts.includes(highlightConcept);
 
         return (
@@ -120,7 +123,7 @@ export function NotesView({
             />
 
             <div className="note-foot">
-              {read ? (
+              {read && !needsRead ? (
                 <span className="note-read">✓ Marked as revised</span>
               ) : (
                 <button
