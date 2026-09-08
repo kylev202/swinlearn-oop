@@ -110,6 +110,13 @@ export function LessonPlayer({
   const isLast = stepIndex >= lesson.steps.length - 1;
   const pct = ((stepIndex + 1) / lesson.steps.length) * 100;
 
+  // In a lab, a step with work to check must be passed before the next one is
+  // readable — otherwise the next step's seed code, which usually continues
+  // from this step's solution, gives the answer away. A pure-reading step has
+  // nothing to hide, so it never blocks.
+  const gated = lesson.kind === 'lab' && (hasWork || asks.total > 0);
+  const locked = gated && !saved.completed;
+
   const reading = (
     <div className={`pane-read${hasWork ? '' : ' full'}`}>
       <div className="reader">
@@ -144,12 +151,16 @@ export function LessonPlayer({
               {asks.open} to answer on this step
             </span>
           )}
+          {locked && hasWork && asks.open === 0 && (
+            <span className="asks-left">Pass the tests to continue</span>
+          )}
           {!hasWork && !saved.completed && asks.total === 0 && (
             <button onClick={() => onUpdateStep(step.id, { completed: true })}>Mark as read</button>
           )}
           <button
             className="primary"
-            disabled={isLast}
+            disabled={isLast || locked}
+            title={locked ? 'Finish this step before moving on' : undefined}
             onClick={() => {
               if (!hasWork && asks.total === 0) onUpdateStep(step.id, { completed: true });
               onStepChange(stepIndex + 1);

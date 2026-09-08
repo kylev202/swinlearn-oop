@@ -655,6 +655,8 @@ code, pre { font-family: var(--mono); font-size: 13px; font-variant-ligatures: n
 .step-link:hover { background: var(--bg-sunken); color: var(--text); }
 .step-link.active { background: var(--bg-sunken); color: var(--text); font-weight: 550; }
 .step-link.done .step-name { color: var(--text-faint); }
+.step-link.locked { color: var(--text-faint); cursor: not-allowed; opacity: 0.6; }
+.step-link.locked:hover { background: transparent; color: var(--text-faint); }
 .step-name { flex: 1; min-width: 0; }
 .step-tag {
   font-family: var(--mono);

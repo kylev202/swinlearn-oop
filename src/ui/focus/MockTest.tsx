@@ -236,6 +236,12 @@ export function MockReview({
 
   return (
     <div className="mock-review">
+      {/* Ten marked questions is a long scroll to the button at the foot, and
+          on a phone the rail is not there to leave by either. */}
+      <button className="focus-back" onClick={onDone}>
+        <span aria-hidden>&#8592;</span> Readiness board
+      </button>
+
       <div className="mock-result">
         <div className={`mock-score${correct >= 7 ? ' good' : correct >= 5 ? ' ok' : ' poor'}`}>
           <strong>{correct}</strong>

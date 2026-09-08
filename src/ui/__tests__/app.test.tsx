@@ -229,6 +229,27 @@ describe('the app', () => {
     expect(await screen.findByText(/could not find a class called 'Counter'/i)).toBeInTheDocument();
   });
 
+  it('locks the next lab step until the current one is passed', async () => {
+    await completeOnboarding();
+    fireEvent.click(await screen.findByRole('button', { name: /Start week 2/i }));
+    openLesson('Task 2.1 — Build the Counter');
+
+    // Step 1 (reading, no work) is free to leave.
+    fireEvent.click(await screen.findByRole('button', { name: /Next →/i }));
+    await screen.findByRole('heading', { name: 'Create the class' }, { timeout: 5000 });
+
+    // Step 2 is an unsolved exercise: Next must refuse to move past it, and the
+    // sidebar must refuse to open the step after it — otherwise its seed code,
+    // which continues from this step's own solution, gives the answer away.
+    expect(screen.getByRole('button', { name: /Next →/i })).toBeDisabled();
+    expect(screen.getByText('Pass the tests to continue')).toBeInTheDocument();
+
+    const lockedLink = nav().getByText('What a Counter knows').closest('button')!;
+    expect(lockedLink).toBeDisabled();
+    fireEvent.click(lockedLink);
+    expect(screen.getByRole('heading', { name: 'Create the class' })).toBeInTheDocument();
+  });
+
   it('shows hints one at a time, and never the answer', async () => {
     await completeOnboarding();
     fireEvent.click(await screen.findByRole('button', { name: /Start week 2/i }));

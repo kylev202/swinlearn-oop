@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { DEFAULT_PROFILE, type StudentProfile } from '@/content/personalize';
+import type { Lesson } from '@/content/types';
 import { EMPTY_FOCUS, hydrateFocus, type FocusState } from './focus';
 import { desktop } from './desktop';
 
@@ -135,6 +136,20 @@ export function reloadFromStorage() {
   setState(load());
 }
 
+/**
+ * The live store, bypassing React's render cycle.
+ *
+ * A step handler that marks the current step complete and immediately
+ * navigates forward runs both in one synchronous call: `updateStep` writes
+ * `current` right away, but the `state` a component holds from `useAppState`
+ * only catches up on the next render. Anything gating navigation against just
+ * completed step data — e.g. `maxUnlockedStepIndex` — must read this instead,
+ * or it blocks the very transition that unlocked it.
+ */
+export function getState(): AppState {
+  return current;
+}
+
 export function useAppState() {
   const [state, setLocal] = useState(current);
 
@@ -187,6 +202,22 @@ export function useAppState() {
 
 export function stepState(state: AppState, id: string): StepState {
   return state.steps[id] ?? {};
+}
+
+/**
+ * Furthest step a lab lesson will let a student open.
+ *
+ * A lab is graded on the student's own work, so seeing a later step's seed
+ * code — which usually continues from the previous step's solution — hands
+ * them the answer before the tests have made them earn it. Every other lesson
+ * kind has nothing to hide, so it stays fully navigable.
+ */
+export function maxUnlockedStepIndex(lesson: Lesson, state: AppState): number {
+  const last = lesson.steps.length - 1;
+  if (lesson.kind !== 'lab') return last;
+  let i = 0;
+  while (i < last && stepState(state, lesson.steps[i].id).completed) i++;
+  return i;
 }
 
 // ------------------------------------------------------------ backing up

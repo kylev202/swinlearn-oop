@@ -16,7 +16,9 @@ import { isProfileComplete } from '@/content/personalize';
 import {
   completionOf,
   exportProgress,
+  getState,
   importProgress,
+  maxUnlockedStepIndex,
   stepState,
   useAppState,
   whereSaved,
@@ -106,7 +108,7 @@ export function App() {
         for (const l of w.lessons) {
           const idx = l.steps.findIndex((s) => s.id === stepId);
           if (idx >= 0) {
-            openLesson(w.number, l.id, idx);
+            openLesson(w.number, l.id, Math.min(idx, maxUnlockedStepIndex(l, getState())));
             return;
           }
         }
@@ -118,12 +120,13 @@ export function App() {
   const stepCount = lesson?.steps.length ?? 0;
   const goToStep = useCallback(
     (step: number) => {
-      if (view.name !== 'lesson' || !stepCount) return;
-      const next = Math.max(0, Math.min(step, stepCount - 1));
+      if (view.name !== 'lesson' || !stepCount || !lesson) return;
+      const cap = maxUnlockedStepIndex(lesson, getState());
+      const next = Math.max(0, Math.min(step, stepCount - 1, cap));
       setView({ ...view, step: next });
       setLast({ weekNumber: view.weekNumber, lessonId: view.lessonId, step: next });
     },
-    [view, stepCount, setLast],
+    [view, stepCount, lesson, setLast],
   );
 
   const move = useCallback((delta: number) => {
@@ -268,7 +271,11 @@ export function App() {
           subtitle: `${l.kind} · ${l.minutes} min`,
           run: () => openLesson(w.number, l.id, 0),
         });
+        // A lab step past the lock isn't listed — jumping to it from here would
+        // be the same answer-peek the sidebar and Next button already block.
+        const cap = maxUnlockedStepIndex(l, state);
         l.steps.forEach((s, i) => {
+          if (i > cap) return;
           out.push({
             id: `step:${s.id}`,
             group: l.title,
@@ -280,7 +287,7 @@ export function App() {
       }
     }
     return out;
-  }, [openLesson, setTheme, state.theme, runExport, runImport]);
+  }, [openLesson, setTheme, state, runExport, runImport]);
 
   const needsOnboarding = !state.onboarded || !isProfileComplete(state.profile);
 
@@ -405,25 +412,37 @@ export function App() {
 
                     {active && (
                       <div className="step-list">
-                        {l.steps.map((s, i) => {
-                          const done = stepState(state, s.id).completed;
-                          const here = view.step === i;
-                          return (
-                            <button
-                              key={s.id}
-                              className={`step-link${here ? ' active' : ''}${done ? ' done' : ''}`}
-                              onClick={() => openLesson(week.number, l.id, i)}
-                            >
-                              <span className={`step-dot${done ? ' done' : here ? ' active' : ''}`} />
-                              <span className="step-name">{s.title}</span>
-                              {s.exercise && (
-                                <span className="step-tag" title="This step has code to write">
-                                  {'</>'}
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
+                        {(() => {
+                          const cap = maxUnlockedStepIndex(l, state);
+                          return l.steps.map((s, i) => {
+                            const done = stepState(state, s.id).completed;
+                            const here = view.step === i;
+                            const locked = i > cap;
+                            return (
+                              <button
+                                key={s.id}
+                                className={`step-link${here ? ' active' : ''}${done ? ' done' : ''}${locked ? ' locked' : ''}`}
+                                disabled={locked}
+                                title={locked ? 'Finish the previous step first' : undefined}
+                                onClick={() => openLesson(week.number, l.id, i)}
+                              >
+                                <span className={`step-dot${done ? ' done' : here ? ' active' : ''}`} />
+                                <span className="step-name">{s.title}</span>
+                                {locked ? (
+                                  <span className="step-tag" aria-hidden>
+                                    🔒
+                                  </span>
+                                ) : (
+                                  s.exercise && (
+                                    <span className="step-tag" title="This step has code to write">
+                                      {'</>'}
+                                    </span>
+                                  )
+                                )}
+                              </button>
+                            );
+                          });
+                        })()}
                       </div>
                     )}
                   </div>
