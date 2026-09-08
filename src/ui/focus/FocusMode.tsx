@@ -322,7 +322,15 @@ export function FocusMode({
 
         {(view.name === 'drill' || view.name === 'fix') && spec && (
           <Drill
-            key={view.name === 'drill' ? `w${view.week}` : view.conceptId}
+            // Keyed on the sitting, not just the week/concept: re-opening the
+            // same week's quiz or the same fix-up from the sidebar while its
+            // previous sitting is still on screen must start a fresh Drill
+            // instance. Keying on week/conceptId alone left React reusing the
+            // old instance's `at`/`answers` state against the newly drawn
+            // question set, which snapped straight to a fake "done" screen —
+            // scored against stale answers — without the student ever seeing
+            // the new questions, and without recording anything.
+            key={view.salt}
             spec={spec}
             onAnswer={answer}
             onDone={board}

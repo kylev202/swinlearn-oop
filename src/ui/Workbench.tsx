@@ -55,6 +55,9 @@ export interface WorkbenchProps {
   onCodeChange: (code: string) => void;
   student: StudentProfile;
   onSolved?: () => void;
+  /** How many hints have been revealed, persisted so leaving the step and coming back does not hand them back for free. */
+  hintsShown?: number;
+  onHintsChange?: (hintsShown: number) => void;
   /** Run as soon as it mounts, for demo blocks. */
   autoRun?: boolean;
   dark?: boolean;
@@ -67,14 +70,24 @@ interface RunStats {
 }
 
 export function Workbench(props: WorkbenchProps) {
-  const { exercise, tools, code, onCodeChange, student, onSolved, autoRun, dark = false } = props;
+  const {
+    exercise,
+    tools,
+    code,
+    onCodeChange,
+    student,
+    onSolved,
+    hintsShown = 0,
+    onHintsChange,
+    autoRun,
+    dark = false,
+  } = props;
 
   const [tab, setTab] = useState<Tool>(tools[0] ?? 'console');
   const [result, setResult] = useState<RunResult | null>(null);
   const [stats, setStats] = useState<RunStats | null>(null);
   const [checks, setChecks] = useState<CheckResult[] | null>(null);
   const [checkError, setCheckError] = useState<CompileError | undefined>();
-  const [hintsShown, setHintsShown] = useState(0);
   const [busy, setBusy] = useState(false);
   const [canvasRunning, setCanvasRunning] = useState(false);
   const [canvasSource, setCanvasSource] = useState('');
@@ -136,7 +149,6 @@ export function Workbench(props: WorkbenchProps) {
     setStats(null);
     setChecks(null);
     setCheckError(undefined);
-    setHintsShown(0);
     setCanvasRunning(false);
     setFlash(false);
     setTaskOpen(true);
@@ -176,7 +188,7 @@ export function Workbench(props: WorkbenchProps) {
   const hintButton = exercise ? (
     <button
       className="tool-btn"
-      onClick={() => setHintsShown((n) => Math.min(n + 1, exercise.hints.length))}
+      onClick={() => onHintsChange?.(Math.min(hintsShown + 1, exercise.hints.length))}
       disabled={hintsShown >= exercise.hints.length}
     >
       <HintIcon />

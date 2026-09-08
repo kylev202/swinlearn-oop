@@ -6,7 +6,7 @@
  * in state means progress restoration needs no URL parsing.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { week2, week2Interview } from '@/content/week2';
 import { week3, week3Interview } from '@/content/week3';
 import { week4, week4Interview } from '@/content/week4';
@@ -26,10 +26,16 @@ import {
 import { desktop, isDesktop, type MenuCommand } from '@/state/desktop';
 
 import { Home } from './Home';
-import { FocusMode } from './focus/FocusMode';
 import { LessonPlayer } from './LessonPlayer';
 import { Onboarding } from './Onboarding';
 import { CommandPalette, type Command } from './CommandPalette';
+
+// Concept focus is a whole second app's worth of question bank and revision
+// notes for Weeks 1-5 — bigger than the lessons it sits next to — and a
+// student may spend an entire session in the lessons without opening it.
+// Lazy, the same way Workbench is in LessonPlayer.tsx, so that content never
+// loads until "Concept focus" is actually clicked.
+const FocusMode = lazy(() => import('./focus/FocusMode').then((m) => ({ default: m.FocusMode })));
 
 const WEEKS: Week[] = [week2, week3, week4, week5];
 const INTERVIEWS: Record<number, InterviewQuestion[]> = {
@@ -522,15 +528,17 @@ export function App() {
           )}
 
           {view.name === 'focus' && (
-            <FocusMode
-              focus={state.focus}
-              student={state.profile}
-              railOpen={sidebarOpen}
-              navOpen={navOpen}
-              onUpdate={updateFocus}
-              onLeave={() => { setView({ name: 'home' }); setNavOpen(false); }}
-              onCloseNav={() => setNavOpen(false)}
-            />
+            <Suspense fallback={<div className="home-scroll"><p className="focus-empty">Loading Concept focus…</p></div>}>
+              <FocusMode
+                focus={state.focus}
+                student={state.profile}
+                railOpen={sidebarOpen}
+                navOpen={navOpen}
+                onUpdate={updateFocus}
+                onLeave={() => { setView({ name: 'home' }); setNavOpen(false); }}
+                onCloseNav={() => setNavOpen(false)}
+              />
+            </Suspense>
           )}
 
           {view.name === 'lesson' && week && lesson && (

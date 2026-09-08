@@ -187,6 +187,8 @@ export function LessonPlayer({
         }}
         student={student}
         onSolved={() => onUpdateStep(step.id, { completed: true })}
+        hintsShown={saved.hintsShown ?? 0}
+        onHintsChange={(hintsShown) => onUpdateStep(step.id, { hintsShown })}
       />
     </Suspense>
   ) : null;
