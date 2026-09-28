@@ -8,7 +8,7 @@ before doing any content work; update it after finishing a week.
 
 The resource files themselves are never copied into this repo.
 
-## Done — all 6 weeks of currently-provided resources are built
+## Done — all 8 weeks of currently-provided resources are built
 
 | Resource file | Used in | Notes |
 |---|---|---|
@@ -30,6 +30,12 @@ The resource files themselves are never copied into this repo.
 | `Lecture 6.md` (Week 6: Responsibility-Driven Design) | `week6.ts` | Fully used — the three RDD steps, CRC cards, knows/does, cohesion/coupling, the five UML relationship types and the opt/alt/loop sequence fragments. **The recorded lecture is not about RDD at all** (see the note below); the W6a/W6b slide decks carried in this file are the real source. The chess walkthrough and the Hospital Management System activity both appear — HMS as checkpoint questions rather than a build, since the activity has no code in it. |
 | `OOP Lab6.pdf` (Task 6.1 only) | `week6.ts` | Fully covered: all 27 numbered steps, staged the way the PDF stages them (subclass that adds nothing → virtual/override → move `_width`/`_height` down → abstract → MyLine). **Step 8.4 of the PDF has a typo** — it says the C-key sets `kindToAdd` to `ShapeKind.Rectangle`, meaning `Circle`; taught as a trap, not copied. There is no Task 6.2 this week. |
 | `Quiz 6.md` (14 Q&A) | `week6.ts` | All 14 used, cited by number: Q4, Q7, Q10, Q11, Q2 in the RDD lesson; Q13, Q8, Q12, Q3, Q1, Q5, Q14 in the collaboration/cohesion/coupling lesson; Q6, Q9 in the UML lesson. `week6.test.ts` asserts every one of Q1–Q14 is cited somewhere, so dropping one fails the build. |
+| `Lecture 7.md` (Week 7: Common implementation issues; RDD recap; a live-coded Lab 8 walkthrough) | `week7.ts` | Fully used, split three ways. §3 (the W7a deck proper — overloading, scope, error messages, documentation, Google-fu) is lessons 1–3. §2 (the RDD recap, with the new Employee/Payroll and MusicPlayer examples and the Student/Catalog/StudyUnit relationship table) is lesson 4. §1 — the live-coded `Player`/`Locate`/save-load walkthrough — is **design only** in lesson 5, because the code it builds is Lab 8's, and that is `week8.ts`. |
+| `OOP Lab7.pdf` | *(nothing)* | **Byte-identical to `OOP Lab6.pdf`** (verified by md5) — the same "Week 6: Drawing Program – Multiple Shape Kinds" sheet Week 6 is already built from. **There is no Week 7 lab.** The unit's real Week 7 lab session is the verification interview for Task 8.1/8.2. `week7.ts` therefore has no `kind: 'lab'` lesson, `week7.test.ts` asserts that absence deliberately, and the week card says so where a student will read it. If a real Lab 7 ever appears, that assertion is what should fail. |
+| `Quiz 7.md` (8 Q&A) | `week7.ts` | All eight used and cited by number: Q8 and Q3 as predict blocks in the overloading lesson, Q6 and Q7 as predict blocks in the scope lesson, Q1 and Q5 as predict blocks in the error lesson, Q4 and Q2 as quizzes in the documentation step. `week7.test.ts` asserts Q1–Q8 each appear. |
+| `Lecture 8.md` (Week 8: Good OO design; a live-coded `Bag`/composite/`IHaveInventory` walkthrough) | `week8.ts` | Fully used. §1–§4 (four goals; lazy/antisocial/conformist; MVC; Strategy; Square-Rectangle; the design smells and class-size tips) are lesson 3. §0 — the `Bag` composite, its three unit tests including the deliberately-failing nested search, and `IHaveInventory` — is lesson 4. **§0 is really Week 9's lab**, and there is no Lab 9 sheet in the folder, so it is built from the lecture alone and the lesson says so; the recursive fix the lecture leaves as an exercise is built as one. |
+| `OOP Lab8.pdf` (Tasks 8.1 Player, 8.2 save/load) | `week8.ts` | Both tasks fully covered, all five named unit tests. The file format on page 7 is a screenshot, not prose — three lines, name / description / comma-separated item descriptions — which is why step 13 asks for `ItemList` to be reformatted. Method names (`SaveObject`, `LoadFrom`) come from Lecture 7's transcript, since Lab8.pdf's steps 12/14 are screenshots too. |
+| `Quiz 8.md` (6 Q&A) | `week8.ts` | All six used and cited by number: Q6 (lazy) and Q3 (MVC) in the laziness steps, Q1 (antisocial) in the anti-sociality step, Q2 (Square/Rectangle) as the conformity predict block, Q4 (polymorphism over if-else) and Q5 (deep hierarchies) in the design-smells step. `week8.test.ts` asserts Q1–Q6 each appear. |
 
 ## Engine bugs found and fixed while authoring content
 
@@ -167,29 +173,112 @@ while a subclass gets "'_colour' is private to 'Shape', so 'Circle' cannot use
 it even though it inherits it". `w4-cp-access-predict` asserts the rejection, so
 a regression fails `week4.test.ts`.
 
+## The `ShortDescription` / `FullDescription` divergence, resolved in Week 8
+
+Worth knowing before touching Weeks 4, 5 or 8, because it looks like a bug in
+two directions at once.
+
+`week4.ts` built `GameObject.ShortDescription` and `FullDescription` as
+**methods**, following Lecture 4's transcript. Both `OOP Lab5.pdf` (Iteration 4)
+and `OOP Lab8.pdf` (Iteration 5) draw them as `<<readonly, property>>`, and
+Lecture 7's and Lecture 8's own live-coded samples are properties too. So the
+app was the outlier, and had been since Week 4.
+
+Weeks 4 and 5 were **deliberately not rewritten**: that would break the saved
+editor contents of anyone mid-semester, across two weeks of exercises and two
+test files, to fix something the unit itself re-specifies anyway. Instead
+**Week 8's first step is the conversion** — read the Iteration 5 UML, notice the
+stereotype, turn both into read-only properties — which is Lecture 7 §3.5's own
+advice ("when a lab gives you a prescribed design, follow it step by step")
+applied to a real divergence. `week8.test.ts` asserts that leaving them as
+methods fails the step, so the conversion cannot be quietly skipped.
+
+Everything in `week8.ts` from that step onwards uses properties. `ItemList` was
+already a property and is unaffected, though Task 8.2 reformats it.
+
+## Engine work done for Weeks 7 and 8
+
+- **`src/engine/fileio.ts` is new.** `StreamWriter`, `StreamReader` and `File`
+  over a `Map<string, string>` that lives for one run — write-then-read inside
+  one program behaves exactly as it does on disk, and pressing Run again starts
+  from an empty folder. Without it Task 8.2 could only have been read, not run.
+  `ReadLine` returns `null` past the end (so `while (line != null)` terminates)
+  and a `WriteLine`-built file reports no phantom trailing blank line; both are
+  pinned by `engine/__tests__/fileio.test.ts`. Opening a reader on a missing
+  path throws a catchable `FileNotFoundException`. There are **no `using`
+  statements** in this parser, so every example closes its writer by hand.
+- **Duplicate method signatures are now rejected** at class registration
+  (`interpreter.ts` `addMember`, plus `signatureOf` at the bottom of the file).
+  Before this, `void Add(int,int)` and `int Add(int,int)` both loaded happily,
+  which is exactly what Quiz 7 Q3 and Q8 say cannot happen — so those two
+  predict blocks would have been teaching the opposite of the truth. The error
+  message distinguishes "only the return type differs" from "only a parameter
+  name differs". `runProgram` and `runTests` now wrap `new Interpreter(...)`,
+  because this check fires there rather than during execution.
+- **A student's own class now beats a shimmed one in `new`** (`evalNew`). The
+  SplashKit shim claims ordinary English type names, and Week 8's canonical
+  Liskov example is a class called `Rectangle` — `new Rectangle()` used to hand
+  back a SplashKit struct and then crash the interpreter with
+  `Cannot read properties of undefined`. This also retires the hazard
+  documented under Week 6 about `Circle`.
+- **`Is.Not.Null` / `Is.Not.EqualTo(x)` now work.** `Is.Not` was a marker struct
+  nothing read members off, so any use of it threw
+  `'<Is.Not>' has no member called 'Null'`. Task 8.1's "the item is still in the
+  inventory" tests read far better with it.
+- **`Block.lang` is now honoured.** It was declared on the `code` block type and
+  never passed to `CodeBlock`, so every read-only block was highlighted as C#
+  — including Task 8.2's sample of a saved *text* file, where the player's name
+  came out coloured as a type. `StepView.tsx` passes it through now.
+
+## Concept Focus is now scoped by exam
+
+`src/content/focus/exams.ts` names the two papers, and everything in the mode
+hangs off an `ExamId` (`'midsem' | 'final'`) carried on the shell's view.
+
+- **Midsem** is everything that already existed: 34 concepts, 353 questions,
+  Weeks 1–5 notes, mock papers. Unchanged.
+- **Final** is deliberately empty, and its tab says so rather than showing a
+  0% dial against an empty bank. `src/ui/focus/FinalView.tsx` states what is
+  known (nothing — **no lecture up to Week 8 announces the final's date or
+  format**, so nothing in the file invents one), lists the Weeks 1–5 notes as
+  still worth reading, and names Weeks 6–8 as lessons-built-notes-not-written.
+  When Week 9+ arrives: give `exams.ts` a real `weeks` list for the final and
+  let `FinalView` hand over to the same `Board` the midsem tab uses.
+
+The home page grew a **Revision** section in place of the single midterm promo:
+two exam cards, and a strip of chips straight into each week's revision notes.
+`Home`'s `onFocus` now takes `(exam?, notesWeek?)`.
+
 ## Pending
 
-- **Week 7** is the next build, and two things are already known about it from
-  Week 6's own material: `Lecture 6.md` records that Dr Vo live-coded Week 7's
-  **save/load-to-file** feature (writing shape count, colour and coordinates to
-  a text file, reading them back with `try`/`catch`/`finally` and a custom
-  `InvalidDataException`), and said RDD would be **discussed properly in Week 7**
-  after the break. Neither is built. Note the custom-exception engine gap above
-  before planning the file-handling lesson — `InvalidDataException` as a
-  user-defined subclass of `Exception` does not currently work end to end.
+- **Week 9 is the next build**, and one thing is already known about it: Lecture
+  8 calls the good-design material "step stones toward **Week 9's design
+  patterns** topic", and live-codes the `Bag`/composite/`IHaveInventory` work
+  that is almost certainly Lab 9. That lecture content is **already built**, in
+  `week8.ts`'s lesson 4, from the lecture alone — when a real Lab 9 sheet
+  arrives, check it against `w8-comp-*` before rebuilding anything.
+- **Concept Focus for the final** is scaffolded but empty — see the section
+  above. Weeks 6, 7 and 8 have lessons but no revision notes, no concepts in
+  `concepts.ts` and no questions in the bank. That is the single largest piece
+  of outstanding work in the repo.
 - **`Swin-Adventure Requirements.pdf`**'s full command-keyword table
-  (move/look/pickup/put/inventory/quit) and Room/Bag/General-Thing spec are
-  still unbuilt, unchanged since Week 5.
+  (move/look/pickup/put/inventory/quit) and Room/General-Thing spec are still
+  unbuilt, unchanged since Week 5. `Bag` is now covered by Week 8.
+- **The custom-exception engine gap** (Week 5's note above) is still open. It
+  did not block Weeks 7 or 8, since neither needed a user-defined exception
+  subclass to run.
 
-Everything else in the folder has been used, through Week 6. On the next content
+Everything else in the folder has been used, through Week 8. On the next content
 session: list the resources folder, diff its filenames against the tables above,
 and only read what's new.
 
-## Scope hints worth knowing before continuing past Week 6
+## Scope hints worth knowing before continuing past Week 8
 
 - `src/ui/Home.tsx`'s `PLANNED` array is now empty (all provided weeks are built) and the "Coming next" section hides itself when it is — add back to it, in the same `{n, title, note}` shape, once real material for a new week exists.
 - `src/tools/uml.ts` and `src/tools/sequence.ts` doc comments cite specific quiz question numbers they were built to serve — read these comments before assuming a tool needs new work for a future week.
 - `src/content/personalize.ts` documents every personalization rule found across Labs 2–6 (`color2`, `color4`, `shapeParam`, `outlineWidth`, `circleRadius`, `lineCount`, `resetLiteral`). A Lab 5.2 "pin" is not a separate token — it reuses the existing `XXXX` (last four digits of student ID) token, since that is literally what the pin is. Lab 6.1's rectangle default (100 + XX) is the same number as `shapeParam` (1 followed by XX), so it reuses that token rather than adding a duplicate; the circle radius (50 + XX) and the parallel-line count (X, with 0 read as 5) are new.
-- The real unit's own numbering: app "week N" = Lecture N + Lab N + Quiz N, except app week 2 additionally absorbs Lecture 1 (there is no Lab 1). Week 6 followed this pattern exactly; expect Week 7 to as well.
+- The real unit's own numbering: app "week N" = Lecture N + Lab N + Quiz N, except app week 2 additionally absorbs Lecture 1 (there is no Lab 1) and app week 7 has no lab at all (Lab7.pdf is a duplicate of Lab6.pdf). Note the one-week offset that creates in practice: **Lecture 7 walks through Lab 8's tasks**, because they are due before the Week 8 lab; **Lecture 8 walks through Lab 9's**. Expect a lecture to be about the *next* week's lab from here on.
+- `week7.ts` and `week8.ts` both hoist their shared harness classes into module-level constants (`FOUNDATION`, `FOUNDATION_SAVE`, `INVENTORY_TABBED`, `INVENTORY_COMMAS`) rather than pasting them into eight harnesses. Week 8's first step changes `GameObject`, and every later harness has to agree with it — that is what those constants are for.
+- A `forbid` check runs against the **whole** source, harness included. A seed that already contains the forbidden pattern (e.g. leaving `Take` in an Inventory seed while forbidding `_items.Remove`) makes the step unpassable. Two exercises were restructured for this while writing Week 7.
 - Blocks are **not** all personalised by `StepView.tsx`: `text`, `callout`, `code`, `runnable`, `predict`, `umlSpec`, `table`, `compare` and `quiz` run through `personalize()`, but **`parsons` and `recall` do not** — a `{{token}}` in either reaches the student as literal braces. `week6.test.ts` asserts this.
 - The markdown renderer does **no HTML-entity decoding**, so `&ndash;` renders literally. Use the real character. One instance of this had been sitting in `week5.ts`'s closing callout and was fixed alongside Week 6.

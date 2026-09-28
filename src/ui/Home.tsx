@@ -10,6 +10,8 @@ import type { Week } from '@/content/types';
 import { completionOf, whereSaved, type AppState } from '@/state/progress';
 import { openFixes, overallReadiness } from '@/state/focus';
 import { isDesktop } from '@/state/desktop';
+import { EXAMS, type ExamId } from '@/content/focus/exams';
+import { notesOfWeek } from '@/content/focus/notes';
 
 /** Weeks not yet built into the app, previewed as locked cards below the available ones. */
 const PLANNED: { n: number; title: string; note: string }[] = [];
@@ -23,7 +25,8 @@ export function Home({
   weeks: Week[];
   state: AppState;
   onOpen: (weekNumber: number, lessonId: string, step?: number) => void;
-  onFocus: () => void;
+  /** Open revision: a whole exam, or straight onto one week's notes. */
+  onFocus: (exam?: ExamId, notesWeek?: number) => void;
 }) {
   const resume = findResume(weeks, state);
   const readiness = Math.round(overallReadiness(state.focus) * 100);
@@ -67,44 +70,85 @@ export function Home({
         </div>
       )}
 
-      <div className="focus-promo">
-        <div className="focus-promo-mark" aria-hidden>
-          <svg viewBox="0 0 32 32" width="30" height="30">
-            <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" strokeWidth="2" />
-            <circle cx="16" cy="16" r="6" fill="none" stroke="currentColor" strokeWidth="2" />
-            <circle cx="16" cy="16" r="1.8" fill="currentColor" />
-          </svg>
-        </div>
-        <div className="focus-promo-body">
-          <div className="focus-promo-label">Midterm test · Week 6</div>
-          <h3>Concept focus</h3>
-          <p>
-            Ten multiple-choice questions in twenty minutes, closed book, drawn from Weeks 1&ndash;5.
-            Revision notes for all five weeks, a quiz per week, and mock papers under the clock
-            &mdash; and anything you get wrong stays on a list until you have revised it and proved it.
-          </p>
-          {started && (
-            <div className="focus-promo-stats">
-              <span>
-                <strong>{readiness}%</strong> ready
-              </span>
-              {fixes > 0 && (
-                <span className="focus-promo-fixes">
-                  <strong>{fixes}</strong> mistake{fixes === 1 ? '' : 's'} to clear
-                </span>
-              )}
-              {state.focus.mocks.length > 0 && (
+      {/*
+        * Revision, as a place rather than a button.
+        *
+        * There are two exams and one set of material, and a student arriving
+        * here needs to see both facts at once: which paper they are revising
+        * for, and that the notes themselves are a week at a time. So the exams
+        * are cards and the weeks are a strip of chips underneath them — the
+        * chips are the thing most often wanted ("re-read Week 3") and the
+        * cards are the thing occasionally chosen.
+        */}
+      <div className="home-heading">
+        <h2>Revision</h2>
+        <span className="rule" />
+      </div>
+
+      <div className="exam-cards">
+        {EXAMS.map((exam) => (
+          <button
+            key={exam.id}
+            className={`exam-card${exam.ready ? '' : ' soon'}`}
+            onClick={() => onFocus(exam.id)}
+          >
+            <span className="exam-card-when">{exam.when}</span>
+            <strong className="exam-card-name">{exam.name}</strong>
+            <span className="exam-card-blurb">{exam.blurb}</span>
+
+            {exam.ready && started ? (
+              <span className="exam-card-stats">
                 <span>
-                  <strong>{state.focus.mocks.length}</strong> mock paper
-                  {state.focus.mocks.length === 1 ? '' : 's'} sat
+                  <strong>{readiness}%</strong> ready
                 </span>
-              )}
-            </div>
-          )}
+                {fixes > 0 && (
+                  <span className="exam-card-fixes">
+                    <strong>{fixes}</strong> to clear
+                  </span>
+                )}
+                {state.focus.mocks.length > 0 && (
+                  <span>
+                    <strong>{state.focus.mocks.length}</strong> mock
+                    {state.focus.mocks.length === 1 ? '' : 's'} sat
+                  </span>
+                )}
+              </span>
+            ) : (
+              <span className="exam-card-stats">
+                <span>{exam.format}</span>
+              </span>
+            )}
+
+            <span className="exam-card-go">
+              {exam.ready ? (started ? 'Continue' : 'Start preparing') : 'See what is missing'}
+              <span aria-hidden> &rarr;</span>
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div className="note-strip">
+        <span className="note-strip-label">Weekly concept notes</span>
+        <div className="note-chips">
+          {EXAMS[0].weeks.map((week) => {
+            const notes = notesOfWeek(week);
+            if (!notes) return null;
+            return (
+              <button
+                key={week}
+                className="note-chip"
+                onClick={() => onFocus('midsem', week)}
+                title={notes.gist}
+              >
+                <span className="note-chip-num">W{week}</span>
+                {notes.title}
+              </button>
+            );
+          })}
         </div>
-        <button className="primary" onClick={onFocus}>
-          {started ? 'Continue' : 'Start preparing'} &rarr;
-        </button>
+        <p className="note-strip-foot">
+          Weeks 6&ndash;8 have full lessons below, but no revision notes written yet.
+        </p>
       </div>
 
       <div className="home-heading">

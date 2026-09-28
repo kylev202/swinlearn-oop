@@ -231,7 +231,76 @@ describe('concept focus', () => {
     cleanup();
     reloadFromStorage();
     render(<App />);
-    fireEvent.click(await screen.findByRole('button', { name: /Continue →/ }));
+    // The whole exam card is the button, so name it by the exam rather than by
+    // the call to action — the arrow beside it is decorative and aria-hidden.
+    fireEvent.click(await screen.findByRole('button', { name: /Midsemester test/ }));
     expect(await page().findByText('Mistakes to clear (1)')).toBeInTheDocument();
+  });
+});
+
+/*
+ * The two exams.
+ *
+ * Concept Focus now answers to a paper rather than to itself, and the
+ * interesting cases are the ones where the answer is "nothing yet": the Final
+ * tab has to be reachable, has to say what is missing, and must not report a
+ * readiness percentage against a bank that does not exist — a 0% dial would
+ * read as "you are unprepared" when the truth is "nothing has been written".
+ */
+describe('the two exams', () => {
+  async function onboard() {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Amy' } });
+    fireEvent.change(screen.getByLabelText('Student ID'), { target: { value: '104321987' } });
+    fireEvent.click(screen.getByRole('button', { name: /start learning/i }));
+    return await screen.findByText('Revision');
+  }
+
+  it('offers both papers from the portal, and marks the unbuilt one', async () => {
+    await onboard();
+    expect(screen.getByRole('button', { name: /Midsemester test/ })).toBeInTheDocument();
+    const final = screen.getByRole('button', { name: /Final exam/ });
+    expect(final).toBeInTheDocument();
+    expect(final).toHaveTextContent(/Date not announced yet/);
+    expect(final).toHaveTextContent(/See what is missing/);
+  });
+
+  it('opens a week\'s revision notes straight from the portal', async () => {
+    await onboard();
+    fireEvent.click(screen.getByRole('button', { name: /^W3Collaboration, memory, sequence diagrams$/i }));
+    expect(await page().findByRole('heading', { level: 1 })).toHaveTextContent(
+      'Collaboration, memory, sequence diagrams',
+    );
+  });
+
+  it('sends the final to its own page rather than to an empty board', async () => {
+    await onboard();
+    fireEvent.click(screen.getByRole('button', { name: /Final exam/ }));
+
+    expect(await page().findByText(/Nothing built yet/)).toBeInTheDocument();
+    expect(page().getByText(/What is not here/)).toBeInTheDocument();
+    // No readiness dial, because there is nothing to be ready for.
+    expect(el('.focus-rail .side-progress')).toBeNull();
+    // The gap is named, not implied.
+    for (const week of [6, 7, 8]) {
+      expect(page().getByText(`Week ${week}`, { selector: 'strong' })).toBeInTheDocument();
+    }
+  });
+
+  it('switches back to the midsemester board from the final tab', async () => {
+    await onboard();
+    fireEvent.click(screen.getByRole('button', { name: /Final exam/ }));
+    fireEvent.click(await page().findByRole('button', { name: /Go to the midsemester revision/ }));
+    expect(await page().findByText('Do this next')).toBeInTheDocument();
+    expect(el('.focus-rail .exam-tab.active')).toHaveTextContent('Midsem');
+  });
+
+  it('still reaches the Weeks 1-5 notes from inside the final tab', async () => {
+    await onboard();
+    fireEvent.click(screen.getByRole('button', { name: /Final exam/ }));
+    fireEvent.click(await page().findByRole('button', { name: /Revise the Week 4 notes/ }));
+    expect(await page().findByRole('heading', { level: 1 })).toHaveTextContent(
+      'Inheritance and polymorphism',
+    );
   });
 });

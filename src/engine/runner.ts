@@ -314,11 +314,22 @@ export function runProgram(source: string, opts: RunOptions = {}): RunResult {
     return { ok: false, output: '', error: toCompileError(e), snapshots, calls, truncated, steps };
   }
 
-  const interp = new Interpreter(unit, {
-    stdin: opts.stdin,
-    student: opts.student,
-    stepBudget: opts.stepBudget,
-  });
+  /*
+   * Building the interpreter is itself a checking pass — it resolves base
+   * classes, rejects inheritance cycles and (since Week 7) rejects two methods
+   * that share a signature. Those all have to come back as an error the lesson
+   * can show, not as an exception thrown past the caller.
+   */
+  let interp: Interpreter;
+  try {
+    interp = new Interpreter(unit, {
+      stdin: opts.stdin,
+      student: opts.student,
+      stepBudget: opts.stepBudget,
+    });
+  } catch (e) {
+    return { ok: false, output: '', error: toCompileError(e), snapshots, calls, truncated, steps };
+  }
 
   // Without a UI driving frames, a game loop must not spin forever.
   interp.builtins.splashkit.state.maxFrames = 600;
@@ -409,11 +420,24 @@ export function runTests(source: string, opts: RunOptions = {}): TestRunResult {
       if (tm.kind !== 'method') continue;
 
       // Every test gets a fresh interpreter so state never leaks between tests.
-      const interp = new Interpreter(unit, {
-        stdin: opts.stdin,
-        student: opts.student,
-        stepBudget: opts.stepBudget ?? 2_000_000,
-      });
+      // Building one can fail on a program-wide problem (a signature clash, an
+      // inheritance cycle); that is a failing test, not a crashing runner.
+      let interp: Interpreter;
+      try {
+        interp = new Interpreter(unit, {
+          stdin: opts.stdin,
+          student: opts.student,
+          stepBudget: opts.stepBudget ?? 2_000_000,
+        });
+      } catch (e) {
+        const ce = toCompileError(e);
+        results.push({
+          name: tm.name, fixture: fixture.name, passed: false,
+          message: ce.line ? `${ce.message} (line ${ce.line})` : ce.message,
+          durationSteps: 0,
+        });
+        continue;
+      }
       interp.builtins.splashkit.state.maxFrames = 200;
 
       let steps = 0;

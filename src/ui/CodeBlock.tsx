@@ -73,10 +73,18 @@ export function highlightCsharp(code: string): ReactNode[] {
 export function CodeBlock({
   code,
   caption,
+  lang = 'csharp',
   right,
 }: {
   code: string;
   caption?: string;
+  /**
+   * Anything other than `csharp` is shown as-is. A sample of a saved text
+   * file run through the C# highlighter picks out the player's name as a
+   * "type" and their description as plain prose, which tells the reader
+   * something about the file that is not true.
+   */
+  lang?: 'csharp' | 'bash' | 'text';
   right?: ReactNode;
 }) {
   return (
@@ -89,7 +97,7 @@ export function CodeBlock({
         </div>
       )}
       <pre>
-        <code>{highlightCsharp(code)}</code>
+        <code>{lang === 'csharp' ? highlightCsharp(code) : code}</code>
       </pre>
     </div>
   );

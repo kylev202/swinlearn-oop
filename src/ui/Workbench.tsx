@@ -94,6 +94,7 @@ export function Workbench(props: WorkbenchProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [taskOpen, setTaskOpen] = useState(true);
   const [flash, setFlash] = useState(false);
+  const [hintDismissed, setHintDismissed] = useState(0);
   const solvedRef = useRef(false);
 
   const wantsTrace = tools.includes('memory') || tools.includes('sequence');
@@ -152,6 +153,7 @@ export function Workbench(props: WorkbenchProps) {
     setCanvasRunning(false);
     setFlash(false);
     setTaskOpen(true);
+    setHintDismissed(0);
     solvedRef.current = false;
     setTab(tools[0] ?? 'console');
   }, [exercise?.prompt, props.sampleCode]);
@@ -185,14 +187,23 @@ export function Workbench(props: WorkbenchProps) {
   const allPassed = !!checks && checks.length > 0 && passCount === checks.length;
   const runError = checkError ?? result?.error ?? null;
 
+  const allHintsExhausted = exercise && hintsShown >= exercise.hints.length;
   const hintButton = exercise ? (
     <button
       className="tool-btn"
-      onClick={() => onHintsChange?.(Math.min(hintsShown + 1, exercise.hints.length))}
-      disabled={hintsShown >= exercise.hints.length}
+      onClick={() => {
+        const next = Math.min(hintsShown + 1, exercise.hints.length);
+        onHintsChange?.(next);
+        setHintDismissed(0);
+      }}
+      disabled={!!allHintsExhausted}
     >
       <HintIcon />
-      {hintsShown === 0 ? 'Need a hint?' : `Another hint (${hintsShown}/${exercise.hints.length})`}
+      {hintsShown === 0
+        ? 'Need a hint?'
+        : allHintsExhausted
+          ? `No more hints`
+          : `Another hint (${hintsShown}/${exercise.hints.length})`}
     </button>
   ) : null;
 
@@ -265,16 +276,14 @@ export function Workbench(props: WorkbenchProps) {
     </div>
   );
 
+  // Show only the most recently revealed hint; dismiss clears until a new one is revealed.
+  const currentHint =
+    exercise && hintsShown > 0 && hintDismissed < hintsShown
+      ? exercise.hints[hintsShown - 1]
+      : null;
+
   const body = (
     <div className="wb-body" id="wb-panel-body" role="tabpanel" aria-labelledby={`wb-tab-${tab}`}>
-      {exercise &&
-        exercise.hints.slice(0, hintsShown).map((h, i) => (
-          <div className="hint-box" key={i}>
-            <div className="hint-label">Hint {i + 1}</div>
-            {h}
-          </div>
-        ))}
-
       {tab === 'tests' && <ChecksView checks={checks} error={checkError} />}
 
       {tab === 'console' && <ConsoleView result={result} stats={stats} />}
@@ -338,6 +347,23 @@ export function Workbench(props: WorkbenchProps) {
             {!taskOpen && <span className="prompt-peek">{exercise.prompt}</span>}
           </button>
           {taskOpen && <div className="prompt-text">{exercise.prompt}</div>}
+        </div>
+      )}
+
+      {currentHint && (
+        <div className="hint-strip">
+          <div className="hint-strip-label">
+            <HintIcon />
+            Hint {hintsShown} of {exercise!.hints.length}
+          </div>
+          <div className="hint-strip-text">{currentHint}</div>
+          <button
+            className="hint-strip-close"
+            aria-label="Dismiss hint"
+            onClick={() => setHintDismissed(hintsShown)}
+          >
+            ×
+          </button>
         </div>
       )}
 

@@ -250,14 +250,28 @@ Parsons puzzles are parsed, so the solved order is real C#, and their scramble
 
 ---
 
-## Concept focus — preparing for the midterm
+## Concept focus — preparing for an exam
 
-The lessons teach a week at a time, in order, with an editor open. The Week 6
-midterm is the opposite shape: **10 multiple-choice questions, 20 minutes,
-closed book, drawn from anywhere in Weeks 1&ndash;5.** Preparing for it is not
-"do the lessons again" &mdash; it is finding the handful of ideas you are still
-shaky on and fixing those. So Concept Focus is a separate mode, indexed by
-**concept** rather than by week.
+The lessons teach a week at a time, in order, with an editor open. An exam is
+the opposite shape. The Week 6 midsemester test is **10 multiple-choice
+questions, 20 minutes, closed book, drawn from anywhere in Weeks
+1&ndash;5**; preparing for it is not "do the lessons again" &mdash; it is
+finding the handful of ideas you are still shaky on and fixing those. So
+Concept Focus is a separate mode, indexed by **concept** rather than by week.
+
+The mode is scoped by **which exam**. A segmented control at the top of its
+rail picks between the **midsemester test** and the **final**, and the home
+page carries both as cards plus a strip of chips straight into any week's
+revision notes.
+
+Everything described below belongs to the midsemester test. **The final is
+deliberately empty**, and its tab says so instead of showing a 0% dial against
+a bank that does not exist: it states what is known (nothing &mdash; no lecture
+up to Week 8 announces the final's date or format, so nothing invents one),
+offers the Weeks 1&ndash;5 notes as still worth reading, and names Weeks
+6&ndash;8 as lessons-built-notes-not-written. An empty tab that is honest about
+being empty is more useful than a plausible placeholder somebody might revise
+against.
 
 | Screen | What it is for |
 |---|---|

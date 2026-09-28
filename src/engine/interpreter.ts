@@ -232,6 +232,32 @@ export class Interpreter implements BuiltinHost {
           access, paramCount: m.params.length, owner: cls,
         };
         const list = cls.methods.get(m.name) ?? [];
+        /*
+         * Two methods are the same method if their parameter *types* match.
+         *
+         * Week 7 is built on this rule — Quiz 7 Q3 asks what happens when only
+         * the return type differs, and Q8 when only a parameter name does. Both
+         * are compile errors in C#, and without this check both quietly worked
+         * here, which would have taught the opposite of the lesson.
+         */
+        const signature = signatureOf(m.params);
+        const clash = list.find((existing) => signatureOf(existing.decl.params) === signature);
+        if (clash) {
+          const differsOnlyByName = m.params.some(
+            (p, i) => p.name !== clash.decl.params[i]?.name,
+          );
+          const differsOnlyByReturn =
+            typeRefToString(m.returnType) !== typeRefToString(clash.decl.returnType);
+          throw new RuntimeError(
+            `Class '${cls.name}' already defines a member called '${m.name}' with the same parameter types.`,
+            m.pos,
+            differsOnlyByReturn
+              ? 'Overloads are told apart by their parameter list only — the return type is not part of the signature. Give one of them different parameters, or a different name.'
+              : differsOnlyByName
+                ? 'Parameter *names* are not part of a signature. To overload, the number, order or types of the parameters have to differ.'
+                : 'To overload a method, the number, order or types of its parameters have to differ.',
+          );
+        }
         list.push(info);
         cls.methods.set(m.name, list);
         break;
@@ -1650,16 +1676,28 @@ export class Interpreter implements BuiltinHost {
     const args = yield* this.evalArgs(argExprs, env);
     const name = type.name;
 
-    // Framework collections and shimmed types.
-    const builtin = yield* this.builtins.construct(type, args, pos);
-    if (builtin !== undefined) {
-      if (initializer) {
-        for (const el of initializer) {
-          const v = yield* this.evalExpr(el, env);
-          this.builtins.initializerAdd(builtin, v, pos);
+    /*
+     * A class the student declared always wins over a shimmed one.
+     *
+     * C# works this way — a type you declare shadows an imported one — and the
+     * alternative bites hard here, because the shim's type names are ordinary
+     * English words. `Rectangle` is a SplashKit struct, and the canonical
+     * Liskov example in Week 8 is a class called `Rectangle`; before this,
+     * `new Rectangle()` quietly produced a SplashKit struct and the next
+     * method call crashed the interpreter rather than the program.
+     */
+    if (!this.classes.has(name)) {
+      // Framework collections and shimmed types.
+      const builtin = yield* this.builtins.construct(type, args, pos);
+      if (builtin !== undefined) {
+        if (initializer) {
+          for (const el of initializer) {
+            const v = yield* this.evalExpr(el, env);
+            this.builtins.initializerAdd(builtin, v, pos);
+          }
         }
+        return builtin;
       }
-      return builtin;
     }
 
     const cls = this.classes.get(name);
@@ -2402,4 +2440,14 @@ function accessOf(mods: Modifier[]): Access {
   if (mods.includes('protected')) return 'protected';
   if (mods.includes('internal')) return 'internal';
   return 'private';
+}
+
+/**
+ * A method's signature, for deciding whether two declarations collide.
+ *
+ * Parameter names and the return type are deliberately absent: C# leaves both
+ * out of the signature, which is precisely what Quiz 7 Q3 and Q8 examine.
+ */
+function signatureOf(params: Param[]): string {
+  return params.map((p) => `${p.modifier ? p.modifier + ' ' : ''}${typeRefToString(p.type)}`).join(',');
 }

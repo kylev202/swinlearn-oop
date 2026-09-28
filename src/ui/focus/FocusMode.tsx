@@ -14,6 +14,7 @@
 import { useMemo, useState } from 'react';
 
 import { CONCEPT_BY_ID, FOCUS_WEEKS } from '@/content/focus/concepts';
+import { EXAMS, EXAM_BY_ID, type ExamId } from '@/content/focus/exams';
 import { conceptCountOfWeek, questionsOfConcept, questionsOfWeek, weeklyQuiz } from '@/content/focus/bank';
 import { QUESTION_BY_ID } from '@/content/focus/bank';
 import { notesOfWeek, sectionForConcept } from '@/content/focus/notes';
@@ -32,6 +33,7 @@ import {
 } from '@/state/focus';
 
 import { Board } from './Board';
+import { FinalView } from './FinalView';
 import { Drill, type DrillSpec } from './Drill';
 import { MockReview, MockTest } from './MockTest';
 import { NotesView } from './NotesView';
@@ -54,6 +56,8 @@ import { NotesView } from './NotesView';
  */
 type View =
   | { name: 'board' }
+  /** The landing page of an exam that has nothing behind it yet. */
+  | { name: 'unbuilt' }
   | { name: 'notes'; week: number; concept?: string }
   | { name: 'drill'; week: number; questionIds: string[]; salt: number }
   | { name: 'fix'; conceptId: string; questionIds: string[]; salt: number }
@@ -63,23 +67,44 @@ type View =
 export function FocusMode({
   focus,
   student,
+  exam,
+  initialNotesWeek,
   railOpen,
   navOpen,
   onUpdate,
+  onExamChange,
   onLeave,
   onCloseNav,
 }: {
   focus: FocusState;
   student: StudentProfile;
+  /** Which exam's revision this session is in. */
+  exam: ExamId;
+  /** Opened straight onto a week's notes, when the portal asked for one. */
+  initialNotesWeek?: number;
   /** Wide screens: whether the rail column is showing at all. */
   railOpen: boolean;
   /** Narrow screens: whether the rail is out as a drawer over the page. */
   navOpen: boolean;
   onUpdate: (fn: (f: FocusState) => FocusState) => void;
+  /** Lifted to the shell, so the topbar and the URL-ish view state agree. */
+  onExamChange: (exam: ExamId) => void;
   onLeave: () => void;
   onCloseNav: () => void;
 }) {
-  const [view, setView] = useState<View>({ name: 'board' });
+  /*
+   * An exam with nothing built lands on its own page rather than on a board
+   * reporting 0% against an empty bank, which would read as a broken feature
+   * rather than as an absent one.
+   */
+  const landing = (): View =>
+    EXAM_BY_ID[exam].ready
+      ? initialNotesWeek !== undefined
+        ? { name: 'notes', week: initialNotesWeek }
+        : { name: 'board' }
+      : { name: 'unbuilt' };
+
+  const [view, setView] = useState<View>(landing);
 
   /*
    * Every destination goes through here.
@@ -93,7 +118,7 @@ export function FocusMode({
     onCloseNav();
   };
 
-  const board = () => go({ name: 'board' });
+  const board = () => go(landing());
 
   /** Open the revision note that covers a concept, scrolled to its section. */
   const revise = (conceptId: string) => {
@@ -173,6 +198,7 @@ export function FocusMode({
     return null;
   }, [view, focus]);
 
+  const current = EXAM_BY_ID[exam];
   const fixCount = openFixes(focus).length;
   const readiness = Math.round(overallReadiness(focus) * 100);
 
@@ -196,17 +222,80 @@ export function FocusMode({
             ← Lessons
           </button>
           <div className="side-week-title">Concept focus</div>
-          <div className="side-progress">
-            <div className="progress-track">
-              <div
-                className={`progress-fill${readiness === 100 ? ' full' : ''}`}
-                style={{ width: `${readiness}%` }}
-              />
-            </div>
-            <span>{readiness}%</span>
+
+          {/*
+            * Which exam, chosen before anything else in the panel.
+            *
+            * It sits inside `.side-week` rather than below it because it
+            * governs everything underneath — the notes, the quizzes and the
+            * mock papers all belong to one exam or the other, and a control
+            * that changes all of them should not look like a peer of them.
+            */}
+          <div className="exam-tabs" role="tablist" aria-label="Which exam">
+            {EXAMS.map((e) => (
+              <button
+                key={e.id}
+                role="tab"
+                aria-selected={e.id === exam}
+                className={`exam-tab${e.id === exam ? ' active' : ''}`}
+                onClick={() => onExamChange(e.id)}
+                title={`${e.name} — ${e.when}`}
+              >
+                {e.short}
+                {!e.ready && <span className="exam-tab-soon">soon</span>}
+              </button>
+            ))}
           </div>
+
+          {current.ready && (
+            <div className="side-progress">
+              <div className="progress-track">
+                <div
+                  className={`progress-fill${readiness === 100 ? ' full' : ''}`}
+                  style={{ width: `${readiness}%` }}
+                />
+              </div>
+              <span>{readiness}%</span>
+            </div>
+          )}
         </div>
 
+        {!current.ready ? (
+          <nav aria-label="Final exam">
+            <div className="lesson-group">
+              <button
+                className={`lesson-link${view.name === 'unbuilt' ? ' active' : ''}`}
+                onClick={board}
+              >
+                <span className="lesson-title">{current.name}</span>
+                <span className="lesson-meta">
+                  <span>{current.when}</span>
+                </span>
+              </button>
+            </div>
+
+            <div className="side-heading">Carried over from the midsem</div>
+            {EXAM_BY_ID.midsem.weeks.map((week) => (
+              <div className="lesson-group" key={week}>
+                <button
+                  className={`lesson-link${view.name === 'notes' && view.week === week ? ' active' : ''}`}
+                  onClick={() => go({ name: 'notes', week })}
+                >
+                  <span className="lesson-title">Week {week}</span>
+                  <span className="lesson-meta">
+                    <span>{notesOfWeek(week)?.title}</span>
+                  </span>
+                </button>
+              </div>
+            ))}
+
+            <div className="side-foot">
+              <strong>Not written yet</strong>
+              Weeks {current.missing.join(', ')} have lessons but no revision notes, and no date or
+              format has been announced for this paper.
+            </div>
+          </nav>
+        ) : (
         <nav aria-label="Concept focus">
           <div className="lesson-group">
             <button
@@ -283,10 +372,18 @@ export function FocusMode({
             </button>
           </div>
         </nav>
+        )}
       </aside>
       )}
 
       <div className="focus-scroll">
+        {view.name === 'unbuilt' && (
+          <FinalView
+            onOpenNotes={(week) => go({ name: 'notes', week })}
+            onSwitchToMidsem={() => onExamChange('midsem')}
+          />
+        )}
+
         {view.name === 'board' && (
           <Board
             focus={focus}

@@ -14,6 +14,7 @@ import {
 } from './values';
 import type { Tick } from './interpreter';
 import { installSplashKit, type SplashKitRuntime } from './splashkit';
+import { installFileSystem, type FileSystem } from './fileio';
 
 /** Thrown by a failing NUnit assertion; caught by the test runner. */
 export class AssertionFailure extends Error {
@@ -60,6 +61,8 @@ export interface BuiltinRegistry {
   defaultFor(type: TypeRef): Value | undefined;
   statics: Set<string>;
   splashkit: SplashKitRuntime;
+  /** The run's in-memory files, so a lesson can show what was saved. */
+  fs: FileSystem;
 }
 
 export function installBuiltins(host: BuiltinHost): BuiltinRegistry {
@@ -78,6 +81,7 @@ export function installBuiltins(host: BuiltinHost): BuiltinRegistry {
   };
 
   const splashkit = installSplashKit(host);
+  const fs = installFileSystem(host);
 
   // A deterministic RNG so a student's run is reproducible when they retry.
   let seed = 0x2545f491;
@@ -89,6 +93,7 @@ export function installBuiltins(host: BuiltinHost): BuiltinRegistry {
   const statics = new Set([
     'Console', 'Math', 'Convert', 'String', 'string', 'int', 'double', 'float', 'long', 'bool', 'char',
     'Int32', 'Double', 'Boolean', 'Assert', 'ClassicAssert', 'Is', 'Has', 'Guid', 'Environment',
+    ...fs.statics,
     ...splashkit.staticTypes,
   ]);
 
@@ -248,6 +253,10 @@ export function installBuiltins(host: BuiltinHost): BuiltinRegistry {
   }
 
   function* callStatic(type: string, member: string, args: Value[], pos: Pos): BGen {
+    if (type === 'File') {
+      const r = fs.callStatic(member, args, pos);
+      if (r !== undefined) return r;
+    }
     switch (type) {
       case 'Console':
         return consoleCall(member, args, pos);
@@ -433,6 +442,23 @@ export function installBuiltins(host: BuiltinHost): BuiltinRegistry {
     return constraint(member, args[0]);
   }
 
+  /*
+   * `Is.Not.Null`, `Is.Not.EqualTo(x)` and friends.
+   *
+   * `Is.Not` is a marker struct, and everything read or called on it produces
+   * the same constraint its positive twin would, negated. Week 8's Task 8.1
+   * asks for "the item is still in the inventory" and "this is not null", both
+   * of which read far better this way round than as `Is.False`.
+   */
+  function isNotMember(member: string): Value | undefined {
+    if (['True', 'False', 'Null', 'Empty'].includes(member)) return constraint(member, undefined, true);
+    return undefined;
+  }
+
+  function isNotCall(member: string, args: Value[]): Value {
+    return constraint(member, args[0], true);
+  }
+
   function assertCall(member: string, args: Value[], pos: Pos): Value {
     switch (member) {
       case 'That': {
@@ -560,6 +586,14 @@ export function installBuiltins(host: BuiltinHost): BuiltinRegistry {
         if (name === 'StackTrace') return S('');
         break;
       case 'struct': {
+        if (obj.type === '<Is.Not>') {
+          const n = isNotMember(name);
+          if (n !== undefined) return n;
+        }
+        if (fs.owns(obj.type)) {
+          const r = fs.readMember(obj, name);
+          if (r !== undefined) return r;
+        }
         const f = obj.fields.get(name);
         if (f !== undefined) return f;
         return splashkit.readStructMember(obj, name, ref);
@@ -602,6 +636,11 @@ export function installBuiltins(host: BuiltinHost): BuiltinRegistry {
         if (name === 'ToString') return S(`${obj.type}: ${obj.message}`);
         return undefined;
       case 'struct':
+        if (obj.type === '<Is.Not>') return isNotCall(name, args);
+        if (fs.owns(obj.type)) {
+          const r = fs.callMethod(obj, name, args, pos, recv);
+          if (r !== undefined) return r;
+        }
         return yield* splashkit.callStructMethod(obj, name, args, pos, recv);
       default:
         return undefined;
@@ -778,6 +817,9 @@ export function installBuiltins(host: BuiltinHost): BuiltinRegistry {
     if (name === 'StringBuilder') {
       return heap.allocRef({ k: 'struct', type: 'StringBuilder', fields: new Map([['value', S('')]]) });
     }
+    const file = fs.construct(name, args, pos);
+    if (file) return file;
+
     if (EXCEPTION_TYPES.has(name)) {
       const message = args.length ? (host.stringOf(args[0]) ?? host.display(args[0])) : defaultExceptionMessage(name);
       return heap.allocRef({ k: 'exception', type: name, message });
@@ -800,7 +842,7 @@ export function installBuiltins(host: BuiltinHost): BuiltinRegistry {
     readStatic, writeStatic, callStatic,
     readInstance, writeInstance, callInstance, readValueMember,
     construct, initializerAdd, defaultFor,
-    statics, splashkit,
+    statics, splashkit, fs,
   };
 }
 
@@ -809,6 +851,7 @@ const EXCEPTION_TYPES = new Set([
   'InvalidOperationException', 'NotImplementedException', 'NotSupportedException',
   'IndexOutOfRangeException', 'NullReferenceException', 'FormatException',
   'DivideByZeroException', 'KeyNotFoundException', 'OverflowException', 'InvalidCastException',
+  'FileNotFoundException', 'IOException', 'ObjectDisposedException',
 ]);
 
 function defaultExceptionMessage(name: string): string {

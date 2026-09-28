@@ -12,8 +12,11 @@ import { week3, week3Interview } from '@/content/week3';
 import { week4, week4Interview } from '@/content/week4';
 import { week5, week5Interview } from '@/content/week5';
 import { week6, week6Interview } from '@/content/week6';
+import { week7, week7Interview } from '@/content/week7';
+import { week8, week8Interview } from '@/content/week8';
 import type { InterviewQuestion, Week } from '@/content/types';
 import { isProfileComplete } from '@/content/personalize';
+import { DEFAULT_EXAM, EXAM_BY_ID, type ExamId } from '@/content/focus/exams';
 import {
   completionOf,
   exportProgress,
@@ -38,20 +41,28 @@ import { CommandPalette, type Command } from './CommandPalette';
 // loads until "Concept focus" is actually clicked.
 const FocusMode = lazy(() => import('./focus/FocusMode').then((m) => ({ default: m.FocusMode })));
 
-const WEEKS: Week[] = [week2, week3, week4, week5, week6];
+const WEEKS: Week[] = [week2, week3, week4, week5, week6, week7, week8];
 const INTERVIEWS: Record<number, InterviewQuestion[]> = {
   [week2.number]: week2Interview,
   [week3.number]: week3Interview,
   [week4.number]: week4Interview,
   [week5.number]: week5Interview,
   [week6.number]: week6Interview,
+  [week7.number]: week7Interview,
+  [week8.number]: week8Interview,
 };
 
 type View =
   | { name: 'home' }
   | { name: 'lesson'; weekNumber: number; lessonId: string; step: number }
-  /** The midterm study mode, which owns its own routing from here down. */
-  | { name: 'focus' };
+  /**
+   * Revision, which owns its own routing from here down. The exam lives on
+   * the shell's view rather than inside the mode so that the topbar button,
+   * the command palette and the home page can all open a particular one — and
+   * so that switching exams remounts the mode, which is what clears a drill
+   * belonging to the exam you just left.
+   */
+  | { name: 'focus'; exam: ExamId; notesWeek?: number };
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform ?? '');
 const MOD = isMac ? '⌘' : 'Ctrl';
@@ -97,6 +108,11 @@ export function App() {
   const toggleNav = useCallback(() => {
     if (isNarrow()) setNavOpen((o) => !o);
     else setSidebarOpen((o) => !o);
+  }, []);
+
+  const openFocus = useCallback((exam: ExamId = DEFAULT_EXAM, notesWeek?: number) => {
+    setView({ name: 'focus', exam, notesWeek });
+    setNavOpen(false);
   }, []);
 
   const openLesson = useCallback(
@@ -230,10 +246,24 @@ export function App() {
       {
         id: 'focus',
         group: 'Go',
-        title: 'Concept focus — prepare for the midterm',
+        title: 'Concept focus — midsemester test',
         subtitle: 'Weeks 1-5 notes, quizzes, mistakes and mock papers',
-        run: () => setView({ name: 'focus' }),
+        run: () => openFocus('midsem'),
       },
+      {
+        id: 'focus-final',
+        group: 'Go',
+        title: 'Concept focus — final exam',
+        subtitle: 'Not built yet; what exists and what is missing',
+        run: () => openFocus('final'),
+      },
+      ...EXAM_BY_ID.midsem.weeks.map((week) => ({
+        id: `focus-notes:${week}`,
+        group: 'Revision notes',
+        title: `Week ${week} revision notes`,
+        subtitle: 'Concept focus — read, then test yourself',
+        run: () => openFocus('midsem', week),
+      })),
       {
         id: 'sidebar',
         group: 'View',
@@ -295,7 +325,7 @@ export function App() {
       }
     }
     return out;
-  }, [openLesson, setTheme, state, runExport, runImport]);
+  }, [openFocus, openLesson, setTheme, state, runExport, runImport]);
 
   const needsOnboarding = !state.onboarded || !isProfileComplete(state.profile);
 
@@ -340,8 +370,8 @@ export function App() {
 
         <button
           className={`focus-btn${view.name === 'focus' ? ' active' : ''}`}
-          onClick={() => { setView({ name: 'focus' }); setNavOpen(false); }}
-          title="Midterm study mode: notes, quizzes and mock papers for Weeks 1-5"
+          onClick={() => openFocus(view.name === 'focus' ? view.exam : DEFAULT_EXAM)}
+          title="Revision: notes, quizzes and mock papers, per exam"
         >
           <TargetIcon />
           <span>Concept focus</span>
@@ -524,7 +554,7 @@ export function App() {
                 weeks={WEEKS}
                 state={state}
                 onOpen={openLesson}
-                onFocus={() => setView({ name: 'focus' })}
+                onFocus={openFocus}
               />
             </div>
           )}
@@ -532,11 +562,18 @@ export function App() {
           {view.name === 'focus' && (
             <Suspense fallback={<div className="home-scroll"><p className="focus-empty">Loading Concept focus…</p></div>}>
               <FocusMode
+                // Remounted per exam on purpose: a drill or a half-finished
+                // mock belongs to the exam it was started in, and carrying it
+                // across a tab change would score it against the wrong bank.
+                key={view.exam}
                 focus={state.focus}
                 student={state.profile}
+                exam={view.exam}
+                initialNotesWeek={view.notesWeek}
                 railOpen={sidebarOpen}
                 navOpen={navOpen}
                 onUpdate={updateFocus}
+                onExamChange={(exam) => setView({ name: 'focus', exam })}
                 onLeave={() => { setView({ name: 'home' }); setNavOpen(false); }}
                 onCloseNav={() => setNavOpen(false)}
               />

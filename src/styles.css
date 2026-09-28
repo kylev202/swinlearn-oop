@@ -1754,6 +1754,30 @@ button.status-bad:hover { background: var(--bad-soft); color: var(--bad); }
   color: var(--warn); font-weight: 660; margin-bottom: 4px;
 }
 
+/* hint strip — shown above the editor, one hint at a time */
+.hint-strip {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 9px 13px;
+  background: var(--warn-soft);
+  border-bottom: 1px solid var(--warn-border);
+  font-size: 13.5px;
+  flex: none;
+  animation: rowIn 200ms var(--ease);
+}
+.hint-strip-label {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--warn); font-weight: 660;
+  white-space: nowrap; padding-top: 2px; flex: none;
+}
+.hint-strip-text { flex: 1; color: var(--text-body); line-height: 1.5; }
+.hint-strip-close {
+  flex: none; background: none; border: none; cursor: pointer;
+  font-size: 18px; line-height: 1; padding: 0 2px;
+  color: var(--text-faint); opacity: 0.7;
+}
+.hint-strip-close:hover { opacity: 1; color: var(--text-body); }
+
 /* ---------------------------------------------------------------- toast */
 
 .toast {
@@ -2435,52 +2459,200 @@ button.status-bad:hover { background: var(--bad-soft); color: var(--bad); }
 }
 .focus-btn.active { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent-deep); }
 
-/* --- the promo on the home page */
+/* --- revision, on the home page
+ *
+ * Two exams and one strip of weeks. The exams are cards because choosing one
+ * is a real decision with consequences for everything downstream; the weeks
+ * are chips because picking one is the small, frequent act ("re-read Week 3")
+ * and it should cost one glance.
+ *
+ * The unbuilt exam is drawn in the same frame as the built one, with the ink
+ * turned down and no accent rule. Greying it out entirely would say "broken";
+ * giving it the full treatment would say "ready". Neither is true.
+ */
 
-.focus-promo {
+.exam-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.exam-card {
   display: flex;
-  align-items: flex-start;
-  gap: 18px;
-  flex-wrap: wrap;
-  padding: 20px 22px;
-  margin-bottom: 46px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  text-align: left;
+  padding: 17px 19px 15px;
   border: 1px solid var(--border-strong);
   border-left: 3px solid var(--accent);
   border-radius: var(--radius-lg);
   background: var(--bg-raised);
+  height: auto;
 }
-.focus-promo-mark { color: var(--accent); flex: none; margin-top: 2px; opacity: 0.9; }
-.focus-promo-body { flex: 1; min-width: 260px; }
-.focus-promo-label {
+.exam-card:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  border-left-color: var(--accent-deep);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow);
+}
+
+.exam-card-when {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.13em;
   font-weight: 700;
   color: var(--accent);
-  margin-bottom: 3px;
 }
-.focus-promo h3 {
+.exam-card-name {
   font-family: var(--serif);
   font-variation-settings: var(--serif-soft);
-  font-size: 23px;
+  font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.2;
-  margin: 0 0 6px;
+  color: var(--text);
 }
-.focus-promo p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--text-dim); max-width: 62ch; }
-.focus-promo-stats {
+.exam-card-blurb {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-dim);
+  white-space: normal;
+}
+.exam-card-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 20px;
-  margin-top: 12px;
-  padding-top: 11px;
+  gap: 3px 16px;
+  margin-top: 6px;
+  padding-top: 9px;
   border-top: 1px solid var(--border);
-  font-size: 12px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  white-space: normal;
+}
+.exam-card-stats strong {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--text);
+  font-weight: 600;
+}
+.exam-card-fixes strong { color: var(--bad); }
+.exam-card-go {
+  margin-top: 9px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Not broken, not ready: the same frame, the accent withdrawn. */
+.exam-card.soon { border-left-color: var(--border-strong); }
+.exam-card.soon .exam-card-when,
+.exam-card.soon .exam-card-go { color: var(--text-faint); }
+.exam-card.soon .exam-card-name { color: var(--text-dim); }
+.exam-card.soon:hover:not(:disabled) { border-left-color: var(--text-faint); }
+
+/* --- the weekly notes strip */
+
+.note-strip {
+  padding: 15px 19px 13px;
+  margin-bottom: 46px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+}
+.note-strip-label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  font-weight: 700;
+  color: var(--text-faint);
+  margin-bottom: 9px;
+}
+.note-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+
+.note-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  height: auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-raised);
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+.note-chip:hover:not(:disabled) {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+.note-chip-num {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.note-strip-foot {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  line-height: 1.5;
+}
+
+/* --- the exam tabs in the revision rail
+ *
+ * A segmented control, not two links: the two are mutually exclusive and one
+ * is always on, which is exactly what a segmented control means.
+ */
+
+.exam-tabs {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  margin: 9px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+}
+.exam-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  font-size: 11.5px;
+  font-weight: 600;
   color: var(--text-faint);
 }
-.focus-promo-stats strong { font-family: var(--mono); font-size: 13px; color: var(--text); font-weight: 600; }
-.focus-promo-fixes strong { color: var(--bad); }
+.exam-tab:hover:not(:disabled) { color: var(--text); background: transparent; }
+.exam-tab.active {
+  background: var(--bg-raised);
+  border-color: var(--border-strong);
+  color: var(--accent-deep);
+}
+.exam-tab-soon {
+  font-size: 8.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: var(--text-faint);
+  opacity: 0.8;
+}
+
+/* A week row for a week that has nothing in it. Same row, less ink. */
+.gap-row { opacity: 0.62; }
+.gap-row .week-row-num { color: var(--text-faint); }
+.gap-row .week-row-title strong { font-weight: 500; }
+
+.board-foot-actions { margin-top: 14px; }
 
 /* --- the board */
 

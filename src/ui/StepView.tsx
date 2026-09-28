@@ -140,7 +140,7 @@ function BlockView({
       );
 
     case 'code':
-      return <CodeBlock code={p(block.code)} caption={block.caption} />;
+      return <CodeBlock code={p(block.code)} caption={block.caption} lang={block.lang} />;
 
     case 'runnable':
       return (
