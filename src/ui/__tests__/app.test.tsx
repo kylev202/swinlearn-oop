@@ -256,17 +256,33 @@ describe('the app', () => {
     openLesson('Task 2.1 — Build the Counter');
     fireEvent.click(await screen.findByRole('button', { name: /Next →/i }));
 
+    // No hint may hand over a complete class declaration, so each one is checked
+    // as it appears — they replace each other rather than stacking, so a sweep of
+    // the DOM at the end would only ever see the last one.
+    const noAnswer = () => {
+      const el = document.querySelector('.hint-strip-text');
+      expect(el?.textContent ?? '').not.toMatch(/public\s+class\s+Counter\s*\{/);
+    };
+
     fireEvent.click(await screen.findByRole('button', { name: /Need a hint\?/i }));
-    expect(await screen.findByText('Hint 1')).toBeInTheDocument();
-    expect(screen.queryByText('Hint 2')).not.toBeInTheDocument();
+    expect(await screen.findByText('Hint 1 of 3')).toBeInTheDocument();
+    noAnswer();
 
+    // Only the newest hint is on screen: the earlier one is replaced, not stacked,
+    // so what is showing always points at the step still to be done.
     fireEvent.click(screen.getByRole('button', { name: /Another hint \(1\/3\)/i }));
-    expect(await screen.findByText('Hint 2')).toBeInTheDocument();
+    expect(await screen.findByText('Hint 2 of 3')).toBeInTheDocument();
+    expect(screen.queryByText('Hint 1 of 3')).not.toBeInTheDocument();
+    noAnswer();
 
-    // No hint anywhere in this step may contain a complete class declaration.
-    for (const el of screen.getAllByText(/./, { selector: '.hint-box' })) {
-      expect(el.textContent ?? '').not.toMatch(/public\s+class\s+Counter\s*\{/);
-    }
+    // Dismissing clears it until another is asked for.
+    fireEvent.click(screen.getByRole('button', { name: /Dismiss hint/i }));
+    expect(screen.queryByText('Hint 2 of 3')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Another hint \(2\/3\)/i }));
+    expect(await screen.findByText('Hint 3 of 3')).toBeInTheDocument();
+    noAnswer();
+    expect(screen.getByRole('button', { name: /No more hints/i })).toBeDisabled();
   });
 
   it('runs the interview drill and reveals what a tutor listens for', async () => {
