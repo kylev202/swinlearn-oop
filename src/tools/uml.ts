@@ -15,6 +15,10 @@
 
 import type { ClassDecl, CompilationUnit, InterfaceDecl, Member, TypeRef } from '@/engine/ast';
 import { typeRefToString } from '@/engine/parser';
+import { layoutDiagram, type LaidOutDiagram } from './umlLayout';
+
+export type { LaidOutDiagram, RoutedEdge } from './umlLayout';
+export { edgePath } from './umlLayout';
 
 export type Visibility = '+' | '-' | '#' | '~';
 
@@ -98,7 +102,7 @@ function referencedUserType(t: TypeRef, known: Set<string>): { name: string; man
   return undefined;
 }
 
-export function buildUml(unit: CompilationUnit): UmlModel {
+export function buildUml(unit: CompilationUnit): LaidOutDiagram {
   const known = new Set(unit.types.map((t) => t.name));
   const classes: UmlClassBox[] = [];
   const relations: UmlRelation[] = [];
@@ -234,22 +238,96 @@ export function buildUml(unit: CompilationUnit): UmlModel {
 
 // ------------------------------------------------------------------- layout
 
-const CHAR_W = 6.3;
-const HEADER_H = 30;
-const ROW_H = 17;
-const PAD_X = 12;
-const GAP_X = 56;
-const GAP_Y = 66;
-const MIN_W = 150;
+/**
+ * Text metrics.
+ *
+ * Member rows are set in JetBrains Mono at 11px, whose advance width measures
+ * at exactly 6.6px for every glyph including the guillemets — checked against
+ * `getComputedTextLength` in the built app rather than guessed, because the
+ * previous guess of 6.15 was 7% short and that is precisely how much the long
+ * `«readonly, property»` rows used to hang past the box border.
+ *
+ * The class name is Instrument Sans at 12.5px, which is proportional, so its
+ * figure is a deliberate over-estimate: a name box slightly too wide is
+ * invisible, one slightly too narrow clips the name.
+ */
+const MONO_CHAR_W = 6.6;
+const NAME_CHAR_W = 8.2;
+/** The stereotype line above the name, at 10px sans. */
+const STEREO_CHAR_W = 5.6;
 
-function boxSize(c: UmlClassBox): { w: number; h: number } {
-  const lines: string[] = [c.name];
-  for (const a of c.attributes) lines.push(attrLabel(a));
-  for (const o of c.operations) lines.push(opLabel(o));
-  const w = Math.max(MIN_W, ...lines.map((l) => l.length * CHAR_W + PAD_X * 2));
+export const HEADER_H = 30;
+export const ROW_H = 17;
+/** Space above and below a member list, inside the box. */
+export const SECTION_PAD = 7;
+const PAD_X = 11;
+const MIN_W = 156;
+const MAX_W = 340;
+
+/** Widest a member row may be before it is elided, in characters. */
+export function memberBudget(boxWidth: number): number {
+  return Math.max(12, Math.floor((boxWidth - PAD_X * 2) / MONO_CHAR_W));
+}
+
+/**
+ * Shorten a member row that will not fit, cutting where it costs least.
+ *
+ * Never a plain right-truncation if it can be helped: `- _shapes: List<Shap…`
+ * hides the very thing the row exists to say, which is that the field holds
+ * Shapes. So the cuts are tried in order of what a reader can most afford to
+ * lose — the parameter list first, then the stereotype, then the type
+ * argument — and a blunt truncation is only the last resort.
+ */
+export function elide(text: string, budget: number): string {
+  if (text.length <= budget) return text;
+
+  // 1. Squeeze the parameter list: `+ Draw(a: int, b: int): void` reads far
+  //    better as `+ Draw(…): void` than as `+ Draw(a: int, b: i…`.
+  const open = text.indexOf('(');
+  const close = text.lastIndexOf(')');
+  if (open > 0 && close > open + 1) {
+    const squeezed = text.slice(0, open + 1) + '…' + text.slice(close);
+    if (squeezed.length <= budget) return squeezed;
+    text = squeezed;
+  }
+
+  // 2. Drop the «stereotype», which is the least load-bearing part of a row.
+  const stereo = text.indexOf(' «');
+  if (stereo > 0 && text.length > budget) {
+    const bare = text.slice(0, stereo);
+    if (bare.length <= budget) return bare;
+    text = bare;
+  }
+
+  // 3. Squeeze a generic argument: `List<Shape>` -> `List<…>`, which still
+  //    says "a collection" even when the element type will not fit.
+  const lt = text.indexOf('<');
+  const gt = text.lastIndexOf('>');
+  if (lt > 0 && gt > lt + 1 && text.length > budget) {
+    const squeezed = text.slice(0, lt + 1) + '…' + text.slice(gt);
+    if (squeezed.length <= budget) return squeezed;
+    text = squeezed;
+  }
+
+  if (text.length <= budget) return text;
+  return text.slice(0, Math.max(1, budget - 1)) + '…';
+}
+
+function sizeBox(c: UmlClassBox): { w: number; h: number } {
+  const memberWidths = [
+    ...c.attributes.map((a) => attrLabel(a).length * MONO_CHAR_W),
+    ...c.operations.map((o) => opLabel(o).length * MONO_CHAR_W),
+  ];
+  const stereoText =
+    c.kind === 'interface' ? '«interface»' : c.kind === 'enum' ? '«enumeration»' : c.isAbstract ? '«abstract»' : '';
+  const headWidth = Math.max(c.name.length * NAME_CHAR_W, stereoText.length * STEREO_CHAR_W);
+  const w = Math.min(MAX_W, Math.max(MIN_W, Math.max(headWidth, ...memberWidths, 0) + PAD_X * 2));
+
   const sections = (c.attributes.length ? 1 : 0) + (c.operations.length ? 1 : 0);
-  const h = HEADER_H + (c.attributes.length + c.operations.length) * ROW_H + sections * 8 + 10;
-  return { w: Math.min(w, 330), h };
+  const rows = c.attributes.length + c.operations.length;
+  // An empty class still gets one row of air, so the box is never a sliver.
+  const body = rows ? rows * ROW_H + sections * SECTION_PAD * 2 : ROW_H;
+  return { w: Math.round(w), h: HEADER_H + body };
 }
 
 export function attrLabel(a: UmlAttribute): string {
@@ -261,65 +339,21 @@ export function attrLabel(a: UmlAttribute): string {
 
 export function opLabel(o: UmlOperation): string {
   const stat = o.isStatic ? 'static ' : '';
-  const ret = o.returns && o.returns !== 'void' ? `: ${o.returns}` : o.returns === 'void' ? '' : '';
+  const ret = o.returns && o.returns !== 'void' ? `: ${o.returns}` : '';
   const mods = o.isAbstract ? ' «abstract»' : o.isOverride ? ' «override»' : o.isVirtual ? ' «virtual»' : '';
   return `${o.visibility} ${stat}${o.name}(${o.params})${ret}${mods}`;
 }
 
 /**
- * Layered layout: inheritance depth drives the row, so base classes sit above
- * their children the way every lab diagram draws them.
+ * Size every box, then hand the arrangement and edge routing to `umlLayout`.
  */
-function layout(model: UmlModel): UmlModel {
-  const { classes, relations } = model;
-  const byName = new Map(classes.map((c) => [c.name, c]));
-
-  const parents = new Map<string, string[]>();
-  for (const r of relations) {
-    if (r.kind !== 'inheritance' && r.kind !== 'realization') continue;
-    parents.set(r.from, [...(parents.get(r.from) ?? []), r.to]);
+function layout(model: UmlModel): LaidOutDiagram {
+  for (const c of model.classes) {
+    const { w, h } = sizeBox(c);
+    c.w = w;
+    c.h = h;
   }
-
-  const depthCache = new Map<string, number>();
-  const depthOf = (name: string, seen = new Set<string>()): number => {
-    if (depthCache.has(name)) return depthCache.get(name)!;
-    if (seen.has(name)) return 0;
-    seen.add(name);
-    const ps = parents.get(name) ?? [];
-    const d = ps.length ? Math.max(...ps.map((p) => (byName.has(p) ? depthOf(p, seen) + 1 : 0))) : 0;
-    depthCache.set(name, d);
-    return d;
-  };
-
-  const rows = new Map<number, UmlClassBox[]>();
-  for (const c of classes) {
-    const size = boxSize(c);
-    c.w = size.w;
-    c.h = size.h;
-    const d = depthOf(c.name);
-    rows.set(d, [...(rows.get(d) ?? []), c]);
-  }
-
-  let y = 24;
-  let maxW = 0;
-  const sortedDepths = [...rows.keys()].sort((a, b) => a - b);
-  for (const d of sortedDepths) {
-    const row = rows.get(d)!;
-    // Keep children roughly under their parents by sorting on parent position.
-    row.sort((a, b) => a.name.localeCompare(b.name));
-    let x = 24;
-    let rowH = 0;
-    for (const c of row) {
-      c.x = x;
-      c.y = y;
-      x += c.w + GAP_X;
-      rowH = Math.max(rowH, c.h);
-    }
-    maxW = Math.max(maxW, x);
-    y += rowH + GAP_Y;
-  }
-
-  return { classes, relations, width: Math.max(maxW + 8, 360), height: y + 8 };
+  return layoutDiagram(model.classes, model.relations);
 }
 
 // ------------------------------------------------------- comparing to a spec

@@ -308,7 +308,7 @@ function UmlSpecView({ source, caption }: { source: string; caption?: string }) 
         <span>{caption ?? 'UML class diagram'}</span>
       </div>
       <div style={{ padding: 14, overflowX: 'auto', background: 'var(--bg-sunken)' }}>
-        <UmlView model={model} />
+        <UmlView model={model} interactive={false} />
       </div>
     </div>
   );

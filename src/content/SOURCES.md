@@ -1,12 +1,25 @@
 # Content sources
 
-Tracks which files from the external resources folder
-(`C:\Users\Klizs\Documents\Code\OOP C# Build Assist\resources`) have been
-turned into lesson content in this repo, so a future session can diff the
-folder against this file instead of re-reading everything. Read this first
-before doing any content work; update it after finishing a week.
+Tracks which files from the external source folders have been turned into
+lesson content in this repo, so a future session can diff those folders against
+this file instead of re-reading everything. Read this first before doing any
+content work; update it after finishing a week.
 
-The resource files themselves are never copied into this repo.
+There are **two** external folders, and a week can be built from either:
+
+| Folder | Holds |
+|---|---|
+| `C:\Users\Klizs\Documents\Code\OOP C# Build Assist\resources` | Lecture transcripts, revision quizzes, and the `OOP LabN.pdf` task sheets |
+| `C:\Users\Klizs\Documents\School\OOP LAB` | **The student's own lab code**, `lab2/`...`lab8/`, plus a hand-written `TIMELINE.md` tracing what changed each week and why |
+
+The second folder was found late (during the Week 7 lab rebuild) and is worth
+checking **before concluding a week has no lab**: Week 7's task sheet is a
+duplicate of Week 6's, and on that basis Week 7 was first built with no lab at
+all - but `lab7/7.1/` holds real, distinct Week 7 work. A missing sheet does not
+mean a missing task. Its `TIMELINE.md` is the fastest way to see what each week
+actually added.
+
+Neither folder's files are ever copied into this repo.
 
 ## Done — all 8 weeks of currently-provided resources are built
 
@@ -30,8 +43,9 @@ The resource files themselves are never copied into this repo.
 | `Lecture 6.md` (Week 6: Responsibility-Driven Design) | `week6.ts` | Fully used — the three RDD steps, CRC cards, knows/does, cohesion/coupling, the five UML relationship types and the opt/alt/loop sequence fragments. **The recorded lecture is not about RDD at all** (see the note below); the W6a/W6b slide decks carried in this file are the real source. The chess walkthrough and the Hospital Management System activity both appear — HMS as checkpoint questions rather than a build, since the activity has no code in it. |
 | `OOP Lab6.pdf` (Task 6.1 only) | `week6.ts` | Fully covered: all 27 numbered steps, staged the way the PDF stages them (subclass that adds nothing → virtual/override → move `_width`/`_height` down → abstract → MyLine). **Step 8.4 of the PDF has a typo** — it says the C-key sets `kindToAdd` to `ShapeKind.Rectangle`, meaning `Circle`; taught as a trap, not copied. There is no Task 6.2 this week. |
 | `Quiz 6.md` (14 Q&A) | `week6.ts` | All 14 used, cited by number: Q4, Q7, Q10, Q11, Q2 in the RDD lesson; Q13, Q8, Q12, Q3, Q1, Q5, Q14 in the collaboration/cohesion/coupling lesson; Q6, Q9 in the UML lesson. `week6.test.ts` asserts every one of Q1–Q14 is cited somewhere, so dropping one fails the build. |
-| `Lecture 7.md` (Week 7: Common implementation issues; RDD recap; a live-coded Lab 8 walkthrough) | `week7.ts` | Fully used, split three ways. §3 (the W7a deck proper — overloading, scope, error messages, documentation, Google-fu) is lessons 1–3. §2 (the RDD recap, with the new Employee/Payroll and MusicPlayer examples and the Student/Catalog/StudyUnit relationship table) is lesson 4. §1 — the live-coded `Player`/`Locate`/save-load walkthrough — is **design only** in lesson 5, because the code it builds is Lab 8's, and that is `week8.ts`. |
-| `OOP Lab7.pdf` | *(nothing)* | **Byte-identical to `OOP Lab6.pdf`** (verified by md5) — the same "Week 6: Drawing Program – Multiple Shape Kinds" sheet Week 6 is already built from. **There is no Week 7 lab.** The unit's real Week 7 lab session is the verification interview for Task 8.1/8.2. `week7.ts` therefore has no `kind: 'lab'` lesson, `week7.test.ts` asserts that absence deliberately, and the week card says so where a student will read it. If a real Lab 7 ever appears, that assertion is what should fail. |
+| `Lecture 7.md` (Week 7: Common implementation issues; RDD recap; a live-coded Lab 8 walkthrough) | `week7.ts` | Fully used, split three ways. §3 (the W7a deck proper — overloading, scope, error messages, documentation, Google-fu) is lessons 1–3. §2 (the RDD recap, with the new Employee/Payroll and MusicPlayer examples and the Student/Catalog/StudyUnit relationship table) is lesson 4. §1 — the live-coded `Player`/`Locate`/save-load walkthrough — is **design only** in lesson 6, because the code it builds is Lab 8's, and that is `week8.ts`. (Lesson 5 is now Task 7.1, the ShapeDrawer save/load lab — the same pattern on the other track, one week earlier.) |
+| `OOP Lab7.pdf` | *(nothing — superseded, see below)* | **Byte-identical to `OOP Lab6.pdf`** (verified by md5) — the same "Week 6: Drawing Program – Multiple Shape Kinds" sheet Week 6 is already built from. This once read "there is no Week 7 lab", which was **wrong**: the sheet is missing, the task is not. See the `OOP LAB/lab7/7.1` row below. |
+| `OOP LAB/lab7/7.1/` (source code, not a PDF) | `week7.ts` lesson 5 (`w7-task71`) | **The real Week 7 lab**, found in the student's own lab-code folder rather than the resources folder. Two changes no Week 6 file contains: the five ShapeDrawer classes split **one per file**, and **save/load** — `virtual SaveTo`/`LoadFrom` on `Shape` with a `base`-first override per subclass, an `abstract TypeName` tag, and a `CreateShape` factory switch that throws `InvalidDataException` on an unknown tag. `drawing.txt` in that folder is a real 10-shape save file and its `#rrggbbaa` colours are the format the lesson teaches. Built as a 10-step lab lesson; `week7.test.ts` now asserts the lab **exists** (the old assertion asserted its absence) and solves all four exercises plus six near-misses. |
 | `Quiz 7.md` (8 Q&A) | `week7.ts` | All eight used and cited by number: Q8 and Q3 as predict blocks in the overloading lesson, Q6 and Q7 as predict blocks in the scope lesson, Q1 and Q5 as predict blocks in the error lesson, Q4 and Q2 as quizzes in the documentation step. `week7.test.ts` asserts Q1–Q8 each appear. |
 | `Lecture 8.md` (Week 8: Good OO design; a live-coded `Bag`/composite/`IHaveInventory` walkthrough) | `week8.ts` | Fully used. §1–§4 (four goals; lazy/antisocial/conformist; MVC; Strategy; Square-Rectangle; the design smells and class-size tips) are lesson 3. §0 — the `Bag` composite, its three unit tests including the deliberately-failing nested search, and `IHaveInventory` — is lesson 4. **§0 is really Week 9's lab**, and there is no Lab 9 sheet in the folder, so it is built from the lecture alone and the lesson says so; the recursive fix the lecture leaves as an exercise is built as one. |
 | `OOP Lab8.pdf` (Tasks 8.1 Player, 8.2 save/load) | `week8.ts` | Both tasks fully covered, all five named unit tests. The file format on page 7 is a screenshot, not prose — three lines, name / description / comma-separated item descriptions — which is why step 13 asks for `ItemList` to be reformatted. Method names (`SaveObject`, `LoadFrom`) come from Lecture 7's transcript, since Lab8.pdf's steps 12/14 are screenshots too. |
@@ -196,6 +210,29 @@ methods fails the step, so the conversion cannot be quietly skipped.
 Everything in `week8.ts` from that step onwards uses properties. `ItemList` was
 already a property and is unaffected, though Task 8.2 reformats it.
 
+## Engine work done for the Week 7 lab (Task 7.1)
+
+Three gaps, each found by a Task 7.1 exercise failing rather than by review.
+All pinned by `engine/__tests__/fileio.test.ts`.
+
+- **`SplashKit.ColorToString` / `StringToColor` were missing** (`splashkit.ts`).
+  Lab 7.1 writes a colour to a text file and reads it back, so without these the
+  whole task could only be read, not run. They round-trip `#rrggbbaa`, which is
+  the format the real `drawing.txt` in the lab folder uses - `#007f00ff` for its
+  green rectangle. `StringToColor` also accepts a plain colour name, since a
+  student hand-editing a save file is likelier to type `Red`, and throws rather
+  than quietly loading black on junk input.
+- **`Convert.ToSingle` did not exist** (`builtins.ts` `convertCall`). It fell
+  through to `default: return VOID`, so `X = Convert.ToSingle(ReadLine(reader))`
+  assigned *nothing* - every loaded shape landed at no position at all, with no
+  error saying why. Every `float` field in the ShapeDrawer hierarchy is read
+  this way, so this silently broke the entire load path. Added with `ToInt64`
+  for symmetry, and both now share a `parseFloatOrThrow` that rejects an empty
+  string instead of letting JavaScript's `Number('')` turn a blank line into 0.
+- **`InvalidDataException` was not a throwable type.** Lab 7.1's `CreateShape`
+  throws it on an unrecognised type tag - the lab's own example of failing
+  loudly on a corrupt save file - so it is now in `EXCEPTION_TYPES`.
+
 ## Engine work done for Weeks 7 and 8
 
 - **`src/engine/fileio.ts` is new.** `StreamWriter`, `StreamReader` and `File`
@@ -268,16 +305,25 @@ two exam cards, and a strip of chips straight into each week's revision notes.
   did not block Weeks 7 or 8, since neither needed a user-defined exception
   subclass to run.
 
-Everything else in the folder has been used, through Week 8. On the next content
-session: list the resources folder, diff its filenames against the tables above,
-and only read what's new.
+- **The lab-code folder is only partly mined.** Task 7.1 came out of it; the
+  rest has not been read against the lessons. Two things in it look useful:
+  every week's **verification task** (the small extra the tutor sets in the lab
+  — `Inventory.Count`, `Inventory.CountEmpty`, `Drawing.Shapes`,
+  `AddIdentifier`'s duplicate guard, `PrivilegeEscalation`), which the lessons
+  currently teach unevenly, and `lab8/LAB8_NOTES.md`, a step-by-step account of
+  Task 8.1/8.2 written from the code that `week8.ts` was built without.
+
+Everything else in both folders has been used, through Week 8. On the next
+content session: list both folders, diff their filenames against the tables
+above, and only read what's new — and remember that the lab-code folder can
+carry a task the resources folder has no sheet for.
 
 ## Scope hints worth knowing before continuing past Week 8
 
 - `src/ui/Home.tsx`'s `PLANNED` array is now empty (all provided weeks are built) and the "Coming next" section hides itself when it is — add back to it, in the same `{n, title, note}` shape, once real material for a new week exists.
 - `src/tools/uml.ts` and `src/tools/sequence.ts` doc comments cite specific quiz question numbers they were built to serve — read these comments before assuming a tool needs new work for a future week.
 - `src/content/personalize.ts` documents every personalization rule found across Labs 2–6 (`color2`, `color4`, `shapeParam`, `outlineWidth`, `circleRadius`, `lineCount`, `resetLiteral`). A Lab 5.2 "pin" is not a separate token — it reuses the existing `XXXX` (last four digits of student ID) token, since that is literally what the pin is. Lab 6.1's rectangle default (100 + XX) is the same number as `shapeParam` (1 followed by XX), so it reuses that token rather than adding a duplicate; the circle radius (50 + XX) and the parallel-line count (X, with 0 read as 5) are new.
-- The real unit's own numbering: app "week N" = Lecture N + Lab N + Quiz N, except app week 2 additionally absorbs Lecture 1 (there is no Lab 1) and app week 7 has no lab at all (Lab7.pdf is a duplicate of Lab6.pdf). Note the one-week offset that creates in practice: **Lecture 7 walks through Lab 8's tasks**, because they are due before the Week 8 lab; **Lecture 8 walks through Lab 9's**. Expect a lecture to be about the *next* week's lab from here on.
+- The real unit's own numbering: app "week N" = Lecture N + Lab N + Quiz N, except app week 2 additionally absorbs Lecture 1 (there is no Lab 1) and app week 7 has a lab whose **sheet** is missing (Lab7.pdf is a duplicate of Lab6.pdf, so Task 7.1 is built from the `lab7/7.1` source code instead). Note the one-week offset that creates in practice: **Lecture 7 walks through Lab 8's tasks**, because they are due before the Week 8 lab; **Lecture 8 walks through Lab 9's**. Expect a lecture to be about the *next* week's lab from here on.
 - `week7.ts` and `week8.ts` both hoist their shared harness classes into module-level constants (`FOUNDATION`, `FOUNDATION_SAVE`, `INVENTORY_TABBED`, `INVENTORY_COMMAS`) rather than pasting them into eight harnesses. Week 8's first step changes `GameObject`, and every later harness has to agree with it — that is what those constants are for.
 - A `forbid` check runs against the **whole** source, harness included. A seed that already contains the forbidden pattern (e.g. leaving `Take` in an Inventory seed while forbidding `_items.Remove`) makes the step unpassable. Two exercises were restructured for this while writing Week 7.
 - Blocks are **not** all personalised by `StepView.tsx`: `text`, `callout`, `code`, `runnable`, `predict`, `umlSpec`, `table`, `compare` and `quiz` run through `personalize()`, but **`parsons` and `recall` do not** — a `{{token}}` in either reaches the student as literal braces. `week6.test.ts` asserts this.

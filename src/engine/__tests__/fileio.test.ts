@@ -156,3 +156,38 @@ describe('StreamWriter and StreamReader', () => {
     expect(outputOf('        Console.WriteLine(File.Exists("leak.txt"));')).toBe('False');
   });
 });
+
+/*
+ * Lab 7.1 saves a drawing as text, so a colour has to survive being written and
+ * read back. Real SplashKit writes `#rrggbbaa`, and the reference `drawing.txt`
+ * from the lab folder holds exactly that — `#007f00ff` for the green rectangle.
+ * If this pair stops round-tripping, every Week 7 save/load exercise silently
+ * starts reloading drawings in the wrong colours.
+ */
+describe('ColorToString / StringToColor', () => {
+  it('round trips a named colour through text', () => {
+    expect(
+      outputOf(`        string saved = SplashKit.ColorToString(Color.Red);
+        Console.WriteLine(saved);
+        Console.WriteLine(SplashKit.ColorToString(SplashKit.StringToColor(saved)));`),
+    ).toBe('#ff0000ff\n#ff0000ff');
+  });
+
+  it('reads the format the real lab save file uses', () => {
+    expect(
+      outputOf(`        Color c = SplashKit.StringToColor("#007f00ff");
+        Console.WriteLine(SplashKit.ColorToString(c));`),
+    ).toBe('#007f00ff');
+  });
+
+  it('accepts a hand-typed colour name, since a student will edit the file', () => {
+    expect(
+      outputOf('        Console.WriteLine(SplashKit.ColorToString(SplashKit.StringToColor("Blue")));'),
+    ).toBe('#0000ffff');
+  });
+
+  it('rejects text that is not a colour rather than loading black', () => {
+    const r = run('        Color c = SplashKit.StringToColor("banana");');
+    expect(r.error?.message ?? '').toContain('is not a colour');
+  });
+});

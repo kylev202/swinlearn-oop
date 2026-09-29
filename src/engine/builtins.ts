@@ -327,6 +327,26 @@ export function installBuiltins(host: BuiltinHost): BuiltinRegistry {
     return mkInt(parseInt(t, 10));
   }
 
+  /*
+   * The fractional counterpart, for `Convert.ToSingle` / `ToDouble`.
+   *
+   * `Number('')` is 0 in JavaScript, which would have turned a blank line in a
+   * save file into a shape sitting at the origin instead of an error a student
+   * could act on. So an empty or malformed string throws, the way .NET's own
+   * `Convert` does.
+   */
+  function parseFloatOrThrow(s: string, pos: Pos): number {
+    const t = s.trim();
+    if (t === '' || !/^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(t)) {
+      throw host.mkException(
+        'FormatException',
+        `The string '${s}' is not a number, so it could not be converted.`,
+        pos,
+      );
+    }
+    return Number(t);
+  }
+
   function consoleCall(member: string, args: Value[], pos: Pos): Value {
     switch (member) {
       case 'WriteLine':
@@ -418,8 +438,26 @@ export function installBuiltins(host: BuiltinHost): BuiltinRegistry {
       }
       case 'ToDouble': {
         const s = host.stringOf(v);
-        if (s !== undefined) return mkDouble(Number(s.trim()));
+        if (s !== undefined) return mkDouble(parseFloatOrThrow(s, pos));
         return mkDouble(num(v, pos));
+      }
+      /*
+       * `ToSingle` is what Lab 7.1 uses to read a shape's X and Y back out of a
+       * save file, and every `float` field in the ShapeDrawer hierarchy goes
+       * through it. Without it the call fell to `default` and returned VOID —
+       * so a loaded shape silently landed at no position at all, with no error
+       * to say why. `ToInt64` is here for symmetry, not because a lab needs it.
+       */
+      case 'ToSingle': {
+        const s = host.stringOf(v);
+        if (s !== undefined) return mkFloat(parseFloatOrThrow(s, pos));
+        return mkFloat(num(v, pos));
+      }
+      case 'ToInt64': {
+        const s = host.stringOf(v);
+        if (s !== undefined) return mkLong(num(parseIntOrThrow(s, pos), pos));
+        if (v.k === 'bool') return mkLong(v.v ? 1 : 0);
+        return mkLong(Math.round(num(v, pos)));
       }
       case 'ToString': return S(host.display(v));
       case 'ToBoolean': {
@@ -852,6 +890,9 @@ const EXCEPTION_TYPES = new Set([
   'IndexOutOfRangeException', 'NullReferenceException', 'FormatException',
   'DivideByZeroException', 'KeyNotFoundException', 'OverflowException', 'InvalidCastException',
   'FileNotFoundException', 'IOException', 'ObjectDisposedException',
+  // Lab 7.1's CreateShape throws this on an unrecognised type tag, which is the
+  // lab's own example of failing loudly on a corrupt save file.
+  'InvalidDataException',
 ]);
 
 function defaultExceptionMessage(name: string): string {

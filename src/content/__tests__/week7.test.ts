@@ -224,18 +224,52 @@ describe('Week 7 structure', () => {
   });
 
   /*
-   * Deliberate, not an oversight. `OOP Lab7.pdf` is md5-identical to
-   * `OOP Lab6.pdf` — the Week 6 Drawing Program sheet — so the unit has no
-   * Week 7 task of its own, and the Week 7 lab session is the verification
-   * interview for Task 8.1/8.2, which live in week8.ts.
+   * There IS a Week 7 lab, and finding that out cost a rebuild — so this test
+   * exists to stop the next session drawing the earlier, wrong conclusion.
+   *
+   * `OOP Lab7.pdf` is md5-identical to `OOP Lab6.pdf`, which is why Week 7 was
+   * first built with no lab at all. But the *source folder* (`OOP LAB/lab7/7.1`)
+   * holds real, distinct Week 7 work that no Week 6 file contains: the shape
+   * family split one-class-per-file, and `SaveTo`/`LoadFrom`/`TypeName`/
+   * `CreateShape` persistence driven from the lecture's own live-coding. The
+   * duplicate PDF means the sheet is missing, not the task.
+   *
+   * So: a lab lesson, and prose that tells the student why no sheet came with it.
    */
-  it('has no lab lesson, and says so where a student will read it', () => {
-    expect(week7.lessons.some((l) => l.kind === 'lab')).toBe(false);
+  it('has the Task 7.1 lab, and explains the missing task sheet', () => {
+    const labs = week7.lessons.filter((l) => l.kind === 'lab');
+    expect(labs.length, 'Week 7 has exactly one lab — Task 7.1').toBe(1);
+    expect(labs[0].id).toBe('w7-task71');
+    expect(labs[0].assessment, 'a lab lesson states what it is worth').toBeTruthy();
+
     const prose = allSteps()
       .flatMap((s) => s.blocks)
       .map((b) => ('md' in b ? b.md : ''))
       .join('\n');
-    expect(prose).toContain('no lab sheet');
+    // The student is told the sheet is a duplicate rather than left wondering.
+    expect(prose).toContain('byte-identical to Lab6.pdf');
+  });
+
+  /*
+   * The load loop is the whole week in seven statements, and three of its
+   * orderings are load-bearing: Clear before the loop, CreateShape before
+   * LoadFrom, and the header read outside the loop. If the Parsons lines drift
+   * out of that order the puzzle starts teaching a broken loop.
+   */
+  it('the load-loop Parsons puzzle keeps its load-bearing order', () => {
+    const step = stepById('w7-71-parsons');
+    const p = step.blocks.find((b) => b.t === 'parsons');
+    expect(p, 'w7-71-parsons has a parsons block').toBeDefined();
+    const lines = (p as { lines: string[] }).lines;
+    const at = (needle: string) => lines.findIndex((l) => l.includes(needle));
+
+    expect(at('_shapes.Clear()')).toBeLessThan(at('for (int i = 0'));
+    expect(at('CreateShape(kind)')).toBeLessThan(at('shape.LoadFrom(reader)'));
+    expect(at('int count =')).toBeLessThan(at('for (int i = 0'));
+    expect(at('string kind =')).toBeGreaterThan(at('for (int i = 0'));
+    // Every line unique, or the scramble is ambiguous.
+    expect(new Set(lines).size, 'duplicate Parsons line').toBe(lines.length);
+    expect(scrambleOf(lines)).toHaveLength(lines.length);
   });
 
   it('interview questions point at steps that exist', () => {
@@ -365,6 +399,276 @@ describe('Week 7 exercises are solvable', () => {
         return HasItem(id);
     }`,
       ),
+    );
+  });
+});
+
+// ------------------------------------------------- Task 7.1, the lab itself
+
+/*
+ * The four lab exercises, each solved and each near-missed.
+ *
+ * The near-misses are the point. Three of the four steps can be "passed" by
+ * code that works on the one file the harness happens to write and on nothing
+ * else — a switch that returns a rectangle by default, a LoadFrom that skips
+ * base, a Load that news up the shapes in a fixed order. Every one of those is
+ * asserted to fail here, because a check that only rewards the right answer
+ * without punishing the plausible wrong one is not checking anything.
+ */
+describe('Task 7.1 is solvable', () => {
+  const TYPE_NAMES = `public abstract class Shape
+{
+    private Color _color;
+    private float _x;
+    private float _y;
+
+    public Shape(Color color) { _color = color; _x = 0.0f; _y = 0.0f; }
+
+    public Color Color { get { return _color; } set { _color = value; } }
+    public float X { get { return _x; } set { _x = value; } }
+    public float Y { get { return _y; } set { _y = value; } }
+
+    public abstract string TypeName { get; }
+}
+
+public class MyRectangle : Shape
+{
+    public MyRectangle() : base(Color.Green) { }
+
+    public override string TypeName { get { return "Rectangle"; } }
+}
+
+public class MyCircle : Shape
+{
+    public MyCircle() : base(Color.Blue) { }
+
+    public override string TypeName { get { return "Circle"; } }
+}
+
+public class MyLine : Shape
+{
+    public MyLine() : base(Color.Red) { }
+
+    public override string TypeName { get { return "Line"; } }
+}`;
+
+  it('TypeName is abstract on Shape and overridden by all three kinds', () => {
+    expectPass('w7-71-typename', TYPE_NAMES);
+  });
+
+  it('rejects a TypeName that branches on the runtime type instead of overriding', () => {
+    expectFail(
+      'w7-71-typename',
+      TYPE_NAMES.replace(
+        'public class MyLine : Shape\n{\n    public MyLine() : base(Color.Red) { }\n\n    public override string TypeName { get { return "Line"; } }\n}',
+        `public class MyLine : Shape
+{
+    public MyLine() : base(Color.Red) { }
+
+    public override string TypeName
+    {
+        get
+        {
+            if (this is MyLine) { return "Line"; }
+            return "Shape";
+        }
+    }
+}`,
+      ),
+    );
+  });
+
+  const CIRCLE_IO = `public class MyCircle : Shape
+{
+    private int _radius;
+
+    public MyCircle(Color color, int radius) : base(color) { _radius = radius; }
+    public MyCircle() : this(Color.Blue, {{circleRadius}}) { }
+
+    public int Radius { get { return _radius; } set { _radius = value; } }
+
+    public override string TypeName { get { return "Circle"; } }
+
+    public override void SaveTo(StreamWriter writer)
+    {
+        base.SaveTo(writer);
+        writer.WriteLine(_radius);
+    }
+
+    public override void LoadFrom(StreamReader reader)
+    {
+        base.LoadFrom(reader);
+        _radius = Convert.ToInt32(ReadLine(reader));
+    }
+}`;
+
+  it('a circle round-trips through a file', () => {
+    expectPass('w7-71-saveto', CIRCLE_IO);
+  });
+
+  /*
+   * base.SaveTo last instead of first. The four shared fields end up *after*
+   * the radius, so LoadFrom reads the radius where it expected a colour. This
+   * is the single likeliest mistake in the whole task, hence its own case.
+   */
+  it('rejects base.SaveTo called after the subclass field', () => {
+    expectFail(
+      'w7-71-saveto',
+      CIRCLE_IO.replace(
+        '        base.SaveTo(writer);\n        writer.WriteLine(_radius);',
+        '        writer.WriteLine(_radius);\n        base.SaveTo(writer);',
+      ),
+    );
+  });
+
+  it('rejects a LoadFrom that forgets to read the radius back', () => {
+    expectFail(
+      'w7-71-saveto',
+      CIRCLE_IO.replace('        base.LoadFrom(reader);\n        _radius = Convert.ToInt32(ReadLine(reader));', '        base.LoadFrom(reader);'),
+    );
+  });
+
+  const CREATE_SHAPE = `public class Drawing
+{
+    public static Shape CreateShape(string kind)
+    {
+        switch (kind)
+        {
+            case "Rectangle":
+                return new MyRectangle();
+
+            case "Circle":
+                return new MyCircle();
+
+            case "Line":
+                return new MyLine();
+
+            default:
+                throw new InvalidDataException("Unknown shape kind in save file: '" + kind + "'.");
+        }
+    }
+}`;
+
+  it('CreateShape maps every tag and rejects an unknown one', () => {
+    expectPass('w7-71-factory', CREATE_SHAPE);
+  });
+
+  it('rejects a factory that falls back to a rectangle instead of throwing', () => {
+    expectFail(
+      'w7-71-factory',
+      `public class Drawing
+{
+    public static Shape CreateShape(string kind)
+    {
+        switch (kind)
+        {
+            case "Circle":
+                return new MyCircle();
+
+            case "Line":
+                return new MyLine();
+
+            default:
+                return new MyRectangle();
+        }
+    }
+}`,
+    );
+  });
+
+  const DRAWING_LOAD = (body: string) => `public class Drawing
+{
+    private List<Shape> _shapes;
+    private Color _background;
+
+    public Drawing(Color background)
+    {
+        _shapes = new List<Shape>();
+        _background = background;
+    }
+
+    public Color Background { get { return _background; } set { _background = value; } }
+    public int ShapeCount { get { return _shapes.Count; } }
+    public List<Shape> Shapes { get { return _shapes; } }
+
+    public void AddShape(Shape shape) { _shapes.Add(shape); }
+
+    public void Save(string filename)
+    {
+        StreamWriter writer = new StreamWriter(filename);
+        writer.WriteLine(SplashKit.ColorToString(_background));
+        writer.WriteLine(_shapes.Count);
+
+        foreach (Shape shape in _shapes)
+        {
+            writer.WriteLine(shape.TypeName);
+            shape.SaveTo(writer);
+        }
+
+        writer.Close();
+    }
+
+    public void Load(string filename)
+    {
+        StreamReader reader = new StreamReader(filename);
+${body}
+        reader.Close();
+    }
+
+    public static Shape CreateShape(string kind)
+    {
+        switch (kind)
+        {
+            case "Rectangle": return new MyRectangle();
+            case "Circle": return new MyCircle();
+            default: throw new InvalidDataException("Unknown shape kind: '" + kind + "'.");
+        }
+    }
+}`;
+
+  const LOAD_BODY = `        _background = SplashKit.StringToColor(Shape.ReadLine(reader));
+        int count = Convert.ToInt32(Shape.ReadLine(reader));
+        _shapes.Clear();
+
+        for (int i = 0; i < count; i++)
+        {
+            string kind = Shape.ReadLine(reader);
+            Shape shape = CreateShape(kind);
+            shape.LoadFrom(reader);
+            _shapes.Add(shape);
+        }
+`;
+
+  it('Drawing.Load rebuilds the whole drawing from the file', () => {
+    expectPass('w7-71-drawing', DRAWING_LOAD(LOAD_BODY));
+  });
+
+  /*
+   * The check that earns its keep: the harness loads the same file twice, so a
+   * Load without Clear reports four shapes instead of two. Nothing else about
+   * this solution is wrong, which is exactly why it needs catching.
+   */
+  it('rejects a Load that appends instead of replacing', () => {
+    expectFail('w7-71-drawing', DRAWING_LOAD(LOAD_BODY.replace('        _shapes.Clear();\n', '')));
+  });
+
+  it('rejects a Load that ignores the tags and hard-codes the kinds', () => {
+    expectFail(
+      'w7-71-drawing',
+      DRAWING_LOAD(`        _background = SplashKit.StringToColor(Shape.ReadLine(reader));
+        int count = Convert.ToInt32(Shape.ReadLine(reader));
+        _shapes.Clear();
+
+        Shape.ReadLine(reader);
+        MyCircle c = new MyCircle();
+        c.LoadFrom(reader);
+        _shapes.Add(c);
+
+        Shape.ReadLine(reader);
+        MyRectangle r = new MyRectangle();
+        r.LoadFrom(reader);
+        _shapes.Add(r);
+`),
     );
   });
 });

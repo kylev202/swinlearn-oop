@@ -20,6 +20,26 @@ import { SplitPane } from './SplitPane';
 // the editor arrives on the first step that actually asks for one.
 const Workbench = lazy(() => import('./Workbench').then((m) => ({ default: m.Workbench })));
 
+/**
+ * The target diagram for a lab, taken from the lesson's own `umlSpec` block.
+ *
+ * Every lab lesson opens with a "read the diagram first" step carrying the
+ * handout's target diagram, and then spends six or seven steps in the editor
+ * building it — by which point the diagram has scrolled out of reach. Rather
+ * than restate it on each exercise, lift it off the lesson: the first umlSpec
+ * in a lab *is* that lab's target, so the Diagram tab can offer it on every
+ * step of the task at no cost to the content.
+ */
+function targetFor(lesson: Lesson): { source: string; caption?: string } | undefined {
+  if (lesson.kind !== 'lab') return undefined;
+  for (const step of lesson.steps) {
+    for (const block of step.blocks) {
+      if (block.t === 'umlSpec') return { source: block.source, caption: block.caption };
+    }
+  }
+  return undefined;
+}
+
 function toolsFor(step: Step): Tool[] {
   const ex = step.exercise;
   if (!ex) return [];
@@ -67,6 +87,14 @@ export function LessonPlayer({
     document.querySelector('.pane-read')?.scrollTo({ top: 0 });
   }, [step.id]);
 
+  // The lab's target diagram, personalised like everything else, so the
+  // Diagram tab can show it beside the student's own on every task step.
+  const umlTarget = useMemo(() => {
+    const t = targetFor(lesson);
+    if (!t) return undefined;
+    return { source: personalize(t.source, tokens), caption: t.caption ?? 'Target' };
+  }, [lesson, tokens]);
+
   // Personalise the checks the same way the prose is personalised.
   const exercise = useMemo(() => {
     if (!step.exercise) return undefined;
@@ -77,8 +105,9 @@ export function LessonPlayer({
       harness: step.exercise.harness ? personalize(step.exercise.harness, tokens) : undefined,
       hints: step.exercise.hints.map((h) => personalize(h, tokens)),
       tests: JSON.parse(personalize(JSON.stringify(step.exercise.tests), tokens)),
+      umlTarget: umlTarget,
     };
-  }, [step.id, tokens, seed]);
+  }, [step.id, tokens, seed, umlTarget]);
 
   const hasWork = !!step.exercise;
 

@@ -1897,20 +1897,222 @@ button.status-bad:hover { background: var(--bad-soft); color: var(--bad); }
   background: var(--bg-sunken);
   padding: 16px;
 }
+/* The class diagram pans and zooms inside its own canvas, so the wrapper must
+   not scroll or pad it — the canvas fills the panel edge to edge. */
+.diagram-wrap:has(> .uml-stage),
+.diagram-wrap.uml-compare { padding: 0; overflow: hidden; display: flex; }
 .diagram-note {
   font-size: 12.5px; color: var(--text-faint);
   padding: 9px 14px; border-bottom: 1px solid var(--border);
   background: var(--bg-raised); flex: none;
 }
 
-.uml-box { fill: var(--bg-raised); stroke: var(--border-strong); }
-.uml-head { fill: var(--bg-sunken); }
-.uml-name { font: 600 12.5px var(--sans); fill: var(--text); }
-.uml-stereo { font: 500 10px var(--sans); fill: var(--text-faint); }
+/* The class diagram reads as a drawing on paper rather than a UI: ink-weight
+   outlines, a tinted name band, and relation kinds told apart by line weight
+   and head shape — the notation itself — not by colour, because the notation
+   is what the student is marked on. */
+
+/* The diagram needs its own two surfaces. Reusing --bg-raised for the box and
+   --bg-sunken for the name band works on paper, but in dark mode the band then
+   matches the canvas behind it and the header vanishes. These are defined
+   against the canvas instead, so the box always lifts off it. */
+:root {
+  --uml-paper: var(--bg-raised);
+  --uml-band: #ece7dc;
+  --uml-ink: #4a453c;
+}
+:root[data-theme='dark'] {
+  --uml-paper: #26252b;
+  --uml-band: #333139;
+  --uml-ink: #b6b1a8;
+}
+
+.uml-box {
+  fill: var(--uml-paper);
+  stroke: var(--uml-ink);
+  stroke-width: 1.15;
+}
+.uml-head-fill { fill: var(--uml-band); }
+.uml-name { font: 640 12.5px var(--sans); fill: var(--text); }
+.uml-stereo { font: 500 10px var(--sans); fill: var(--text-faint); letter-spacing: 0.01em; }
 .uml-member { font: 400 11px var(--mono); fill: var(--text-dim); }
-.uml-line { stroke: var(--border-strong); }
-.uml-rel { stroke: var(--text-faint); fill: none; }
-.uml-mult { font: 500 10px var(--mono); fill: var(--text-faint); }
+.uml-line { stroke: var(--uml-ink); stroke-width: 1.15; }
+.uml-line-soft { stroke: var(--border-strong); stroke-width: 1; }
+
+.uml-rel {
+  stroke: var(--uml-ink);
+  stroke-width: 1.3;
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: butt;
+}
+/* Generalization is the strongest statement in a class diagram, so it gets the
+   heaviest line; a plain association is the lightest. */
+.uml-edge-inheritance .uml-rel { stroke-width: 1.6; stroke: var(--text); }
+.uml-edge-inheritance .uml-head-hollow { stroke: var(--text); }
+.uml-edge-realization .uml-rel { stroke-width: 1.4; }
+.uml-edge-association .uml-rel { stroke: var(--text-faint); }
+
+/* Hollow heads are filled from the page, not left transparent: a line passing
+   behind an unfilled triangle is exactly the mess this replaces. */
+.uml-head-hollow {
+  fill: var(--uml-paper);
+  stroke: var(--uml-ink);
+  stroke-width: 1.3;
+  stroke-linejoin: miter;
+}
+.uml-head-open {
+  fill: none;
+  stroke: var(--text-faint);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.uml-mult { font: 500 10px var(--mono); fill: var(--text-dim); }
+/* Knocks a hole in the line under a label so the two never overlap. */
+.uml-label-bg { fill: var(--bg-sunken); }
+
+/* ---- viewport ---- */
+
+.uml-stage { position: relative; flex: 1; min-height: 0; display: flex; }
+.uml-canvas {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg-sunken);
+  cursor: grab;
+  touch-action: none;
+  overflow: hidden;
+}
+.uml-canvas:focus-visible { outline: none; box-shadow: inset var(--ring); }
+.uml-canvas.dragging { cursor: grabbing; }
+.uml-canvas svg { display: block; }
+
+.uml-controls {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.uml-ctl {
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+  font: 500 13px var(--sans);
+  padding: 4px 9px;
+  cursor: pointer;
+  transition: background 140ms var(--ease), color 140ms var(--ease);
+}
+.uml-ctl:hover { background: var(--bg-sunken); color: var(--text); }
+.uml-ctl-zoom {
+  font: 500 11px var(--mono);
+  min-width: 52px;
+  border-inline: 1px solid var(--border);
+}
+
+/* ---- notation key ---- */
+
+.uml-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 15px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+.uml-key li { display: inline-flex; align-items: center; gap: 6px; }
+.uml-caption {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  font-style: italic;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.uml-key-svg { flex: none; overflow: visible; }
+
+/* ---- yours / target / compare ---- */
+
+.diagram-note-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 7px 12px;
+}
+.uml-modes { display: inline-flex; gap: 2px; flex: none; }
+.uml-mode {
+  border: 1px solid transparent;
+  background: none;
+  color: var(--text-faint);
+  font: 540 12px var(--sans);
+  padding: 3px 10px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: background 140ms var(--ease), color 140ms var(--ease);
+}
+.uml-mode:hover { color: var(--text); background: var(--bg-sunken); }
+.uml-mode.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+.uml-compare { display: flex; gap: 0; padding: 0; overflow: hidden; }
+.uml-pane {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.uml-pane + .uml-pane { border-left: 1px solid var(--border); }
+.uml-pane-head {
+  flex: none;
+  padding: 5px 12px;
+  font: 660 10.5px var(--sans);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+}
+.uml-pane .mem-empty { margin: auto; }
+
+/* ---- the difference list ---- */
+
+.uml-gaps {
+  flex: none;
+  max-height: 27%;
+  overflow-y: auto;
+  padding: 8px 14px 10px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-raised);
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+.uml-gap-head {
+  display: block;
+  font: 660 10.5px var(--sans);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  margin-bottom: 5px;
+}
+.uml-gaps ul { margin: 0; padding-left: 17px; }
+.uml-gaps li { margin-bottom: 2px; }
+.uml-gap-ok { color: var(--ok); font-weight: 560; display: inline-flex; gap: 6px; }
+.uml-gap-none { color: var(--text-faint); font-size: 12px; }
 
 .seq-line { stroke: var(--border-strong); stroke-dasharray: 4 4; }
 .seq-head { fill: var(--bg-raised); stroke: var(--border-strong); }

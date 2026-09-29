@@ -549,6 +549,33 @@ export function installSplashKit(host: BuiltinHost): SplashKitRuntime {
         const name = COLOR_NAMES[Math.floor(rand() * COLOR_NAMES.length)];
         return namedColor(name)!;
       }
+      // Lab 7.1 saves a drawing as text, and the colour has to survive the round
+      // trip. Real SplashKit writes `#rrggbbaa`, which is what the reference
+      // `drawing.txt` contains, so that is the format here — and `StringToColor`
+      // is its exact inverse, so a saved colour reloads identically.
+      case 'ColorToString': {
+        const c = toRGBA(args[0]);
+        const hex = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+        return S(`#${hex(c.r)}${hex(c.g)}${hex(c.b)}${hex(c.a)}`);
+      }
+      case 'StringToColor': {
+        const text = (host.stringOf(args[0]) ?? '').trim();
+        const m = /^#?([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.exec(text);
+        if (!m) {
+          // A name still works, because a student hand-editing a save file is
+          // far likelier to type `Red` than `#ff0000ff`.
+          const named = namedColor(text);
+          if (named) return named;
+          throw host.mkException(
+            'ArgumentException',
+            `'${text}' is not a colour. Expected #rrggbbaa, as ColorToString writes.`,
+            pos,
+          );
+        }
+        const h = m[1];
+        const byte = (i: number) => parseInt(h.slice(i * 2, i * 2 + 2), 16);
+        return makeColor('custom', byte(0), byte(1), byte(2), h.length === 8 ? byte(3) : 255);
+      }
       case 'Rnd': {
         if (args.length === 0) return mkDouble(rand());
         return mkInt(Math.floor(rand() * num(args[0], pos)));

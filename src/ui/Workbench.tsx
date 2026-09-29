@@ -14,7 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { runChecks, type CheckResult } from '@/engine/checks';
 import { runProgram, type CompileError, type RunResult } from '@/engine/runner';
 import { parse } from '@/engine/parser';
-import { buildUml, type UmlModel } from '@/tools/uml';
+import { buildUml, type LaidOutDiagram } from '@/tools/uml';
 import { buildSequence } from '@/tools/sequence';
 import type { Check, Exercise, Tool } from '@/content/types';
 import type { StudentProfile } from '@/content/personalize';
@@ -22,7 +22,7 @@ import type { StudentProfile } from '@/content/personalize';
 import { CodeEditor } from './editor/CodeEditor';
 import { SplitPane } from './SplitPane';
 import { MemoryPanel } from './panels/MemoryPanel';
-import { UmlView } from './panels/UmlView';
+import { UmlPanel } from './panels/UmlPanel';
 import { SequenceView } from './panels/SequenceView';
 import { CanvasPanel } from './panels/CanvasPanel';
 
@@ -169,7 +169,7 @@ export function Workbench(props: WorkbenchProps) {
     return () => clearTimeout(id);
   }, [flash]);
 
-  const uml: UmlModel | null = useMemo(() => {
+  const uml: LaidOutDiagram | null = useMemo(() => {
     if (!tools.includes('uml')) return null;
     try {
       return buildUml(parse(code));
@@ -290,21 +290,7 @@ export function Workbench(props: WorkbenchProps) {
 
       {tab === 'memory' && <MemoryPanel snapshots={result?.snapshots ?? []} />}
 
-      {tab === 'uml' && (
-        <>
-          <div className="diagram-note">
-            Generated from the code above. Aggregation (◇) means a collection of; a plain arrow means
-            one object holds one other.
-          </div>
-          <div className="diagram-wrap">
-            {uml ? (
-              <UmlView model={uml} />
-            ) : (
-              <p className="mem-empty">Fix the syntax errors and the diagram will appear.</p>
-            )}
-          </div>
-        </>
-      )}
+      {tab === 'uml' && <UmlPanel model={uml} target={exercise?.umlTarget} />}
 
       {tab === 'sequence' && (
         <>

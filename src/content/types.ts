@@ -173,6 +173,16 @@ export interface Exercise {
   /** Escalating: nudge, then structural, then near-answer. Never the answer. */
   hints: string[];
   tool?: Tool;
+  /**
+   * C# source for the diagram the lab is asking for.
+   *
+   * Not authored per exercise: `LessonPlayer` lifts it off the lesson's own
+   * `umlSpec` block, since a lab's target diagram is introduced in its first
+   * step and has scrolled away by the time the student is in the editor. It
+   * lands here so the Diagram tab can show it beside what their code actually
+   * produces — the comparison the task is really asking them to make.
+   */
+  umlTarget?: { source: string; caption?: string };
   /** Console input lines fed to Console.ReadLine(). */
   stdin?: string[];
 }

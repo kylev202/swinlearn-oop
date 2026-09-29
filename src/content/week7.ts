@@ -7,20 +7,28 @@
  * Three things about this week's source material that a future session should
  * not have to rediscover:
  *
- * 1. **There is no Week 7 lab.** `OOP Lab7.pdf` in the resources folder is
- *    byte-identical to `OOP Lab6.pdf` (verified by md5) — the same "Week 6:
- *    Drawing Program – Multiple Shape Kinds" sheet that Week 6 is already built
- *    from. The unit's real Week 7 lab session is a verification interview for
- *    **Task 8.1/8.2**, which the lecture says are "this week's lab, due Week 8".
- *    Those two tasks are built in `week8.ts`, because Lab8.pdf's own header
- *    calls them Week 8 and the app's numbering follows the lab sheet.
- *    So this week has no `kind: 'lab'` lesson, and its home card says so.
+ * 1. **There IS a Week 7 lab — Task 7.1, lesson 5 — but no Week 7 task sheet.**
+ *    `OOP Lab7.pdf` is byte-identical to `OOP Lab6.pdf` (verified by md5): the
+ *    same "Week 6: Drawing Program – Multiple Shape Kinds" sheet Week 6 is
+ *    already built from. On that evidence alone this week was **first built with
+ *    no lab at all**, which was wrong. The student's own lab source folder
+ *    (`OOP LAB/lab7/7.1`) holds real Week 7 ShapeDrawer work that appears in no
+ *    Week 6 file: the five classes split one-per-file, and
+ *    `SaveTo`/`LoadFrom`/`TypeName`/`CreateShape` persistence — the save/load
+ *    feature the Week 7 lecture live-codes. The duplicate PDF means the *sheet*
+ *    is missing, not the task, and the lesson tells the student exactly that
+ *    rather than leaving them hunting for a brief that does not exist.
+ *    `week7.test.ts` now asserts the lab is present, so the earlier wrong
+ *    conclusion cannot be drawn twice.
  * 2. **The lecture's middle third is a Lab 8 walkthrough.** Dr Vo live-codes
  *    `Player`, `Locate`, `FullDescription` and save/load. The *design* half of
  *    that — what `Locate` returns and why, association vs aggregation, why
- *    `Fetch` exists next to `HasItem` and `Take` — is lesson 5 here, so that
+ *    `Fetch` exists next to `HasItem` and `Take` — is lesson 6 here, so that
  *    Week 8 can open the editor already knowing what it is building. The code
- *    itself is Week 8's.
+ *    itself is Week 8's. Note the two halves now sit side by side: lesson 5 is
+ *    save/load on **shapes** (Track B, this week's lab) and lesson 6 is the
+ *    design of save/load on the **player** (Track A, next week's) — the same
+ *    pattern on two domains, which is the unit's own reason for this ordering.
  * 3. **RDD is repeated on purpose.** Week 6 told students its theory was not on
  *    the midterm. That expires the moment the midterm is over, and the lecture
  *    reopens RDD specifically as preparation for the custom program. Lesson 4
@@ -38,6 +46,12 @@
  *     lecture makes a point of that exact case, so the lesson shows it as a
  *     read-only example with a callout saying the playground is the lenient one
  *     — never as a runnable block claiming an error it does not raise.
+ *   - Three gaps were closed so Task 7.1 could actually *run*, all found by its
+ *     own exercises failing: `SplashKit.ColorToString`/`StringToColor` (the
+ *     `#rrggbbaa` pair the real save file uses), `Convert.ToSingle` (which
+ *     silently returned nothing, so every loaded shape landed at no position at
+ *     all), and `InvalidDataException` as a throwable type. All three are pinned
+ *     by `engine/__tests__/fileio.test.ts`.
  *
  * Authoring note: markdown lives in template literals, so every inline-code
  * backtick must be escaped as \` — otherwise it closes the string.
@@ -49,16 +63,21 @@ export const week7: Week = {
   number: 7,
   title: 'Common Implementation Issues & Design, Reapplied',
   subtitle:
-    'Why the compiler rejected that, why the error points at the wrong line, and the design behind next week\'s Player',
+    'Why the compiler rejected that, why the error points at the wrong line, and how a drawing survives being closed',
   outcomes: [
     'Say what makes two methods a valid overload — and what only looks like one',
     'Predict which variable a name resolves to when a local or a parameter shadows a field',
     'Read a stack trace backwards, from where a crash surfaced to the line that caused it',
     'Tell IndexOutOfRangeException and NullReferenceException apart from the message alone',
     'Reapply RDD — roles, responsibilities, collaborations, cohesion, coupling — to a fresh brief',
+    'Save a shape hierarchy to a text file and read it back, base class first and subclass second',
     'Design Player.Locate before writing it: what it returns, who it asks, and why it is not a bool',
   ],
-  sources: ['Week 7 lecture (W7a slides + recording)', 'Quiz 7'],
+  sources: [
+    'Week 7 lecture (W7a slides + recording)',
+    'Quiz 7',
+    'Week 7 lab work (ShapeDrawer save/load — no task sheet was issued)',
+  ],
   lessons: [
     // ================================================================ lesson 1
     {
@@ -1407,6 +1426,1042 @@ public class PhonePlayer
 
     // ================================================================ lesson 5
     {
+      id: 'w7-task71',
+      title: 'Task 7.1 — ShapeDrawer: Saving and Loading a Drawing',
+      kind: 'lab',
+      minutes: 45,
+      assessment: 'Assessed · verified in your Week 7 lab',
+      summary:
+        'Split the shape family into one class per file, then teach every shape to write itself to a text file and read itself back.',
+      steps: [
+        {
+          id: 'w7-71-why',
+          title: 'A drawing that outlives the program',
+          blocks: [
+            {
+              t: 'text',
+              md: `Week 6 got you a drawing you can fill with rectangles, circles and lines. Close the window and it is gone. This week the program learns to **persist** — to write the drawing to a text file and rebuild it on demand.
+
+Persistence is where a whole term of design decisions gets tested at once. A hierarchy that pushed \`_width\` and \`_height\` down onto \`MyRectangle\` now has to write *different fields per subclass* into *one* file, and read them back without knowing in advance what is coming.`,
+            },
+            {
+              t: 'callout',
+              tone: 'note',
+              title: 'About this week\'s task sheet',
+              md: 'The PDF handed out as **OOP Lab7.pdf** is byte-identical to Lab6.pdf — same file, same "Week 6: Multiple Shape Kinds" title page. The Week 7 work is driven by your lab session rather than by a new sheet, and it is the save/load feature your lecturer live-codes in the Week 7 lecture. That is what this lesson builds.',
+            },
+            {
+              t: 'callout',
+              tone: 'key',
+              title: 'Why this week matters twice',
+              md: 'Everything here reappears in **Task 8.2**, where `GameObject` and `Player` get the same `SaveTo`/`LoadFrom` treatment on the SwinAdventure side. Learn the pattern on shapes, apply it to the player — that is the whole reason the unit orders these two weeks this way.',
+            },
+          ],
+        },
+        {
+          id: 'w7-71-onefile',
+          title: 'One class per file',
+          blocks: [
+            {
+              t: 'text',
+              md: `Before any new behaviour, the housekeeping. Week 6 left \`Shape\`, \`Drawing\`, \`MyRectangle\`, \`MyCircle\` and \`MyLine\` **all inside \`Shape.cs\`** — five classes in one file, which was tolerable at two and is not at five.
+
+Split them:
+
+\`\`\`
+Shape.cs   (everything)
+        ↓
+Shape.cs · Drawing.cs · MyRectangle.cs · MyCircle.cs · MyLine.cs
+\`\`\`
+
+In Visual Studio: right-click the project, **Add → Class**, name it \`MyCircle\`, then cut the class body across and delete it from \`Shape.cs\`. The namespace declaration is repeated in each new file; the \`using SplashKitSDK;\` line usually is too.`,
+            },
+            {
+              t: 'callout',
+              tone: 'tip',
+              title: 'Nothing should change',
+              md: 'This is a pure move. Build and run after it — the program should behave exactly as it did before, because C# does not care which file a class lives in. If it stops compiling, you have a missing `namespace` or `using` in a new file, not a design problem.',
+            },
+            {
+              t: 'text',
+              md: `Track A made this same move back in Task 4.2, pulling \`IdentifiableObject\` out of \`Program.cs\`. The reason is the same both times: a file is the unit you navigate by, so one file per class means the file list *is* the class list.`,
+            },
+            {
+              t: 'quiz',
+              question:
+                'What does splitting five classes across five files change about the compiled program?',
+              options: [
+                'Nothing — file layout is for humans, and the compiler sees the same set of types either way',
+                'Each file becomes a separate assembly, so they can be deployed independently',
+                'The classes can no longer see each other unless you add using directives',
+                'It makes the program start faster, because less code is loaded per file',
+              ],
+              answer: 0,
+              why: [
+                '',
+                'One project compiles to one assembly regardless of how many files it holds.',
+                'Classes in the same namespace see each other with no `using` at all — that is what the namespace is for.',
+                'Nothing is loaded "per file" at runtime; the compiler has already merged everything.',
+              ],
+              explain:
+                'C# has no relationship between files and types — `Shape.cs` could declare zero classes or twelve. The split buys navigability and nothing else, which is exactly why it is safe to do as a separate step before touching behaviour.',
+            },
+          ],
+        },
+        {
+          id: 'w7-71-format',
+          title: 'Designing the file format first',
+          blocks: [
+            {
+              t: 'text',
+              md: `Do not open the editor yet. A save/load feature is a **format** plus two methods that agree on it, and the format is the part that is expensive to get wrong — every save file written under the old format becomes unreadable the moment you change it.
+
+Here is a real saved drawing: a white background, a blue circle, a green rectangle, and the first of eight red lines.`,
+            },
+            {
+              t: 'code',
+              lang: 'text',
+              caption: 'drawing.txt — a real save file, abbreviated',
+              code: `#ffffffff
+10
+Circle
+#0000ffff
+323
+300
+2026-09-22 17:38:29
+59
+Rectangle
+#007f00ff
+411
+298
+2026-09-22 17:38:32
+109
+109
+Line
+#ff0000ff
+526
+276
+2026-09-22 17:38:34
+676
+276`,
+            },
+            {
+              t: 'table',
+              caption: 'Reading that file top to bottom',
+              headers: ['Line(s)', 'What it is', 'Who writes it'],
+              rows: [
+                ['`#ffffffff`', 'The drawing\'s background colour', '`Drawing.Save`'],
+                ['`10`', 'How many shapes follow', '`Drawing.Save`'],
+                ['`Circle`', 'A **type tag** — which class comes next', '`Drawing.Save`, from `shape.TypeName`'],
+                ['colour, X, Y, timestamp', 'The four fields every shape has', '`Shape.SaveTo`'],
+                ['`59`', 'The radius — a circle-only field', '`MyCircle.SaveTo`'],
+                ['`109`, `109`', 'Width then height — rectangle-only fields', '`MyRectangle.SaveTo`'],
+              ],
+            },
+            {
+              t: 'callout',
+              tone: 'key',
+              title: 'Two decisions carry the whole format',
+              md: 'The **count** on line 2 tells the loader how many times to go round its loop. The **type tag** before each shape tells it which class to create. Without the tag, reading `#0000ffff / 323 / 300 / …` is just numbers — there is no way to tell a circle\'s radius from a rectangle\'s width.',
+            },
+            {
+              t: 'quiz',
+              question:
+                'Why does the count on line 2 exist, when the loader could just read until the file ends?',
+              options: [
+                'It lets the loader run a fixed `for` loop, and it validates the file — a truncated save is detected rather than silently loading half a drawing',
+                'StreamReader cannot detect the end of a file, so a count is mandatory',
+                'It is required by the text file format itself',
+                'Without it the shapes would load in the wrong order',
+              ],
+              answer: 0,
+              why: [
+                '',
+                '`ReadLine` returns `null` past the end, so reading-until-empty is perfectly possible — it is just weaker.',
+                'A text file has no format. It is lines of characters; every bit of structure in it is one you invented.',
+                'Order comes from the order they were written, and a count does not affect it.',
+              ],
+              explain:
+                'Either approach reads the shapes. The count is the better one because it turns "the file ended" into "the file ended *early*" — an error you can report instead of a drawing that quietly lost its last three shapes.',
+            },
+          ],
+        },
+        {
+          id: 'w7-71-typename',
+          title: 'TypeName — the tag each subclass supplies',
+          blocks: [
+            {
+              t: 'text',
+              md: `Start with the tag, because the rest of the format hangs off it. \`Shape\` declares an **abstract read-only property**:
+
+\`\`\`csharp
+public abstract string TypeName { get; }
+\`\`\`
+
+and each subclass answers with its own word. \`Shape\` itself has no sensible answer — which is exactly what \`abstract\` is for.`,
+            },
+            {
+              t: 'compare',
+              title: 'Two ways to get the tag',
+              left: {
+                title: 'A tag per subclass',
+                tone: 'good',
+                code: `public abstract string TypeName { get; }
+
+// in MyCircle
+public override string TypeName
+{
+    get { return "Circle"; }
+}`,
+              },
+              right: {
+                title: 'Branching in the writer',
+                tone: 'bad',
+                code: `// in Drawing.Save
+if (shape is MyCircle)
+    writer.WriteLine("Circle");
+else if (shape is MyRectangle)
+    writer.WriteLine("Rectangle");
+else if (shape is MyLine)
+    writer.WriteLine("Line");`,
+              },
+            },
+            {
+              t: 'callout',
+              tone: 'key',
+              title: 'This is the same argument as Week 6\'s Draw',
+              md: 'A fourth shape kind costs one line in the left-hand version and an edit to `Drawing.Save` in the right-hand one. Every `is`-chain over a hierarchy is a method that should have been on the hierarchy — Week 8 names this as a design smell and Quiz 8 asks about it.',
+            },
+            {
+              t: 'predict',
+              question: 'What does this print?',
+              code: `public abstract class Shape
+{
+    public abstract string TypeName { get; }
+}
+
+public class MyCircle : Shape
+{
+    public override string TypeName { get { return "Circle"; } }
+}
+
+public class MyLine : Shape
+{
+    public override string TypeName { get { return "Line"; } }
+}
+
+public class Program
+{
+    public static void Main()
+    {
+        List<Shape> shapes = new List<Shape>();
+        shapes.Add(new MyCircle());
+        shapes.Add(new MyLine());
+
+        foreach (Shape s in shapes)
+        {
+            Console.WriteLine(s.TypeName);
+        }
+    }
+}`,
+              options: [
+                'Circle\nLine',
+                'Shape\nShape',
+                'It will not compile — TypeName has no body on Shape',
+                'An empty line, twice',
+              ],
+              answer: 0,
+              why: [
+                '',
+                'The variable is typed `Shape`, but the *object* decides which getter runs. That is the point of an abstract property.',
+                'An abstract member is *required* to have no body. It compiles precisely because both subclasses supply one.',
+                'Neither getter returns an empty string, and there is no default to fall back to.',
+              ],
+              explain:
+                'The loop only knows it holds `Shape`s, yet each one answers with its own tag. This is the same dynamic dispatch as `Draw()` — and it is what lets `Drawing.Save` write the right tag without a single type check.',
+              expect: { output: 'Circle\nLine' },
+            },
+            {
+              t: 'text',
+              md: `Write it. \`TypeName\` is abstract on \`Shape\`, and each of the three subclasses overrides it with its own word — and those words have to be **exactly** the ones the loader will switch on later.`,
+            },
+          ],
+          exercise: {
+            prompt:
+              'Declare TypeName as an abstract read-only string property on Shape, and override it in all three subclasses to return "Rectangle", "Circle" and "Line".',
+            seed: `public abstract class Shape
+{
+    private Color _color;
+    private float _x;
+    private float _y;
+
+    public Shape(Color color) { _color = color; _x = 0.0f; _y = 0.0f; }
+
+    public Color Color { get { return _color; } set { _color = value; } }
+    public float X { get { return _x; } set { _x = value; } }
+    public float Y { get { return _y; } set { _y = value; } }
+
+    // Declare TypeName here.
+}
+
+public class MyRectangle : Shape
+{
+    public MyRectangle() : base(Color.Green) { }
+
+    // Override it here.
+}
+
+public class MyCircle : Shape
+{
+    public MyCircle() : base(Color.Blue) { }
+
+    // And here.
+}
+
+public class MyLine : Shape
+{
+    public MyLine() : base(Color.Red) { }
+
+    // And here.
+}`,
+            tests: [
+              {
+                kind: 'structure',
+                label: 'Shape declares TypeName as an abstract property',
+                rule: { on: 'property', inClass: 'Shape', name: 'TypeName', type: 'string', hasGet: true },
+              },
+              {
+                kind: 'structure',
+                label: 'MyCircle overrides it',
+                rule: { on: 'property', inClass: 'MyCircle', name: 'TypeName', isOverride: true },
+              },
+              {
+                kind: 'structure',
+                label: 'MyRectangle overrides it',
+                rule: { on: 'property', inClass: 'MyRectangle', name: 'TypeName', isOverride: true },
+              },
+              {
+                kind: 'structure',
+                label: 'MyLine overrides it',
+                rule: { on: 'property', inClass: 'MyLine', name: 'TypeName', isOverride: true },
+              },
+              {
+                kind: 'output',
+                label: 'Each kind reports its own tag through a Shape variable',
+                expect: 'Rectangle\nCircle\nLine',
+              },
+              {
+                kind: 'forbid',
+                label: 'The tag comes from the object, not from an is-check',
+                pattern: 'is MyCircle|is MyRectangle|is MyLine|GetType',
+                message:
+                  'Let each subclass answer for itself — no type checks. That is what overriding TypeName is for.',
+              },
+            ],
+            harness: `public class __Check
+{
+    public static void Main()
+    {
+        List<Shape> shapes = new List<Shape>();
+        shapes.Add(new MyRectangle());
+        shapes.Add(new MyCircle());
+        shapes.Add(new MyLine());
+
+        foreach (Shape s in shapes)
+        {
+            Console.WriteLine(s.TypeName);
+        }
+    }
+}`,
+            hints: [
+              'An abstract property has a getter with no body at all: `{ get; }` — semicolon, not braces.',
+              'The override supplies the body: `public override string TypeName { get { return "Circle"; } }`.',
+              'On Shape: `public abstract string TypeName { get; }`. Then one override per subclass, each returning its own word.',
+            ],
+            tool: 'tests',
+          },
+        },
+        {
+          id: 'w7-71-saveto',
+          title: 'SaveTo — base first, then your own',
+          blocks: [
+            {
+              t: 'text',
+              md: `Now the fields. Every shape has a colour, an X, a Y and a creation timestamp; each *kind* has fields beyond that. So the writing splits the same way the hierarchy does:
+
+- \`Shape.SaveTo(StreamWriter)\` is **\`virtual\`** and writes the four shared fields.
+- Each subclass **overrides** it, calls \`base.SaveTo(writer)\` **first**, and then writes its own.`,
+            },
+            {
+              t: 'code',
+              caption: 'Shape.cs',
+              code: `public virtual void SaveTo(StreamWriter writer)
+{
+    writer.WriteLine(SplashKit.ColorToString(Color));
+    writer.WriteLine(X);
+    writer.WriteLine(Y);
+    writer.WriteLine(CreatedAt.ToString(TimestampFormat));
+}`,
+            },
+            {
+              t: 'code',
+              caption: 'MyCircle.cs',
+              code: `public override void SaveTo(StreamWriter writer)
+{
+    base.SaveTo(writer);
+    writer.WriteLine(_radius);
+}`,
+            },
+            {
+              t: 'callout',
+              tone: 'key',
+              title: 'base first is not a style choice',
+              md: 'It fixes the **position** of the shared fields. Every shape\'s block is "four shared lines, then the extras", so `LoadFrom` can read the shared four without knowing which kind it is reading. Move `base.SaveTo` to the end of one override and only that one shape kind breaks — the worst kind of bug, because nine-tenths of the file still loads.',
+            },
+            {
+              t: 'compare',
+              title: 'Why the calls mirror each other',
+              left: {
+                title: 'Writing',
+                tone: 'neutral',
+                code: `// MyRectangle.SaveTo
+base.SaveTo(writer);   // colour, X, Y, time
+writer.WriteLine(_width);
+writer.WriteLine(_height);`,
+              },
+              right: {
+                title: 'Reading',
+                tone: 'neutral',
+                code: `// MyRectangle.LoadFrom
+base.LoadFrom(reader); // colour, X, Y, time
+_width = Convert.ToInt32(ReadLine(reader));
+_height = Convert.ToInt32(ReadLine(reader));`,
+              },
+            },
+            {
+              t: 'callout',
+              tone: 'trap',
+              title: 'A file has no field names',
+              md: 'Nothing in `drawing.txt` says `109` is a width. The only thing making the file readable is that `LoadFrom` reads in **exactly** the order `SaveTo` wrote. Swap two `WriteLine` calls and the drawing reloads with its width and height exchanged — silently, with no error at all.',
+            },
+            {
+              t: 'text',
+              md: `Write both halves for \`MyCircle\`. The harness saves a circle, then loads it into a **fresh** one and prints what came back — so a mismatched order shows up as a wrong number rather than a crash.`,
+            },
+          ],
+          exercise: {
+            prompt:
+              'Override SaveTo and LoadFrom in MyCircle so a circle survives a round trip: call base first in each, then handle _radius.',
+            seed: `public class MyCircle : Shape
+{
+    private int _radius;
+
+    public MyCircle(Color color, int radius) : base(color) { _radius = radius; }
+    public MyCircle() : this(Color.Blue, {{circleRadius}}) { }
+
+    public int Radius { get { return _radius; } set { _radius = value; } }
+
+    public override string TypeName { get { return "Circle"; } }
+
+    public override void SaveTo(StreamWriter writer)
+    {
+    }
+
+    public override void LoadFrom(StreamReader reader)
+    {
+    }
+}`,
+            editable: { from: 12, to: 18 },
+            tests: [
+              {
+                kind: 'structure',
+                label: 'SaveTo overrides the base version',
+                rule: { on: 'method', inClass: 'MyCircle', name: 'SaveTo', isOverride: true },
+              },
+              {
+                kind: 'structure',
+                label: 'LoadFrom overrides the base version',
+                rule: { on: 'method', inClass: 'MyCircle', name: 'LoadFrom', isOverride: true },
+              },
+              {
+                kind: 'output',
+                label: 'A saved circle reloads with the same colour, position and radius',
+                expect: '#0000ffff\n120\n80\n{{circleRadius}}',
+              },
+              {
+                kind: 'forbid',
+                label: 'The shared fields are written by the base class, not copied here',
+                pattern: 'ColorToString|StringToColor',
+                message:
+                  'Colour is one of the four fields Shape already handles. Call base.SaveTo / base.LoadFrom instead of writing it again.',
+              },
+            ],
+            harness: `public abstract class Shape
+{
+    public const string TimestampFormat = "yyyy-MM-dd HH:mm:ss";
+
+    private Color _color;
+    private float _x;
+    private float _y;
+
+    public Shape(Color color) { _color = color; _x = 0.0f; _y = 0.0f; }
+
+    public Color Color { get { return _color; } set { _color = value; } }
+    public float X { get { return _x; } set { _x = value; } }
+    public float Y { get { return _y; } set { _y = value; } }
+
+    public abstract string TypeName { get; }
+
+    public virtual void SaveTo(StreamWriter writer)
+    {
+        writer.WriteLine(SplashKit.ColorToString(Color));
+        writer.WriteLine(X);
+        writer.WriteLine(Y);
+    }
+
+    public virtual void LoadFrom(StreamReader reader)
+    {
+        Color = SplashKit.StringToColor(ReadLine(reader));
+        X = Convert.ToSingle(ReadLine(reader));
+        Y = Convert.ToSingle(ReadLine(reader));
+    }
+
+    public static string ReadLine(StreamReader reader)
+    {
+        string line = reader.ReadLine();
+        if (line == null) { return ""; }
+        return line;
+    }
+}
+
+public class __Check
+{
+    public static void Main()
+    {
+        MyCircle saved = new MyCircle();
+        saved.X = 120.0f;
+        saved.Y = 80.0f;
+
+        StreamWriter writer = new StreamWriter("circle.txt");
+        saved.SaveTo(writer);
+        writer.Close();
+
+        MyCircle loaded = new MyCircle(Color.Black, 0);
+        StreamReader reader = new StreamReader("circle.txt");
+        loaded.LoadFrom(reader);
+        reader.Close();
+
+        Console.WriteLine(SplashKit.ColorToString(loaded.Color));
+        Console.WriteLine(loaded.X);
+        Console.WriteLine(loaded.Y);
+        Console.WriteLine(loaded.Radius);
+    }
+}`,
+            hints: [
+              'Each method is two lines: the call to base, then one line for the radius.',
+              '`base.SaveTo(writer);` then `writer.WriteLine(_radius);`. LoadFrom mirrors it.',
+              'A line arrives as text, so reading needs a conversion: `_radius = Convert.ToInt32(ReadLine(reader));`.',
+            ],
+            tool: 'tests',
+          },
+        },
+        {
+          id: 'w7-71-order',
+          title: 'What a mismatched order actually does',
+          blocks: [
+            {
+              t: 'text',
+              md: `Worth seeing once, because it is the bug this feature produces most often and it does not announce itself.`,
+            },
+            {
+              t: 'predict',
+              question:
+                'The writer writes width then height. The reader reads height then width. What happens?',
+              code: `public class Program
+{
+    public static void Main()
+    {
+        StreamWriter writer = new StreamWriter("box.txt");
+        writer.WriteLine(109);   // width
+        writer.WriteLine(42);    // height
+        writer.Close();
+
+        StreamReader reader = new StreamReader("box.txt");
+        int height = Convert.ToInt32(reader.ReadLine());
+        int width = Convert.ToInt32(reader.ReadLine());
+        reader.Close();
+
+        Console.WriteLine("W=" + width + " H=" + height);
+    }
+}`,
+              options: [
+                'W=42 H=109',
+                'W=109 H=42',
+                'A FormatException, because the values arrive in the wrong order',
+                'An InvalidDataException from the StreamReader',
+              ],
+              answer: 0,
+              why: [
+                '',
+                'That is what the writer meant. The reader never finds out what the writer meant.',
+                '`"109"` and `"42"` both convert to an `int` perfectly well. Nothing is malformed — only misinterpreted.',
+                'Nothing throws that unless you throw it yourself. The read succeeded.',
+              ],
+              explain:
+                'Both numbers are valid integers, so both conversions succeed and the program runs clean — with the values swapped. This is why `SaveTo` and `LoadFrom` are written and reviewed as a pair, and why `base` is called first in both.',
+              expect: { output: 'W=42 H=109' },
+            },
+            {
+              t: 'callout',
+              tone: 'tip',
+              title: 'This is why the lab uses StreamWriter and not BinaryWriter',
+              md: 'A text save file can be opened and read with your own eyes. When a drawing reloads wrong, the first move is to open `drawing.txt` and count the lines against what you expected — a diagnosis that takes seconds, and one a binary format would deny you.',
+            },
+          ],
+        },
+        {
+          id: 'w7-71-factory',
+          title: 'CreateShape — turning a tag back into an object',
+          blocks: [
+            {
+              t: 'text',
+              md: `\`LoadFrom\` fills in a shape that already exists. Something has to **create** it first — and only the file knows which kind, via the tag.
+
+That is a \`switch\` over the tag returning a new object, and it is the one place a type-per-kind decision genuinely belongs: it is turning text into types, which is the only direction polymorphism cannot help with.`,
+            },
+            {
+              t: 'code',
+              caption: 'Drawing.cs',
+              code: `private static Shape CreateShape(string kind)
+{
+    switch (kind)
+    {
+        case "Rectangle":
+            return new MyRectangle();
+
+        case "Circle":
+            return new MyCircle();
+
+        case "Line":
+            return new MyLine();
+
+        default:
+            throw new InvalidDataException("Unknown shape kind in save file: '" + kind + "'.");
+    }
+}`,
+            },
+            {
+              t: 'callout',
+              tone: 'key',
+              title: 'Why a switch is right here and wrong in Save',
+              md: '`Drawing.Save` has a `Shape` object in hand, so it can *ask* it for its tag — a switch there would be branching on something the object already knows. `CreateShape` has only a `string`; there is no object to ask yet. Once it returns, every later call goes through the hierarchy again.',
+            },
+            {
+              t: 'callout',
+              tone: 'trap',
+              title: 'The default case is not optional',
+              md: 'Without it, an unrecognised tag falls through and `CreateShape` returns nothing — or worse, silently returns a rectangle. A corrupt or hand-edited save file should fail loudly at the line that noticed, which is what `throw new InvalidDataException(...)` does.',
+            },
+            {
+              t: 'text',
+              md: `Write it, including the \`default\`.`,
+            },
+          ],
+          exercise: {
+            prompt:
+              'Write CreateShape so each tag returns a new shape of the matching kind, and an unknown tag throws an InvalidDataException naming the bad tag.',
+            seed: `public class Drawing
+{
+    public static Shape CreateShape(string kind)
+    {
+    }
+}`,
+            editable: { from: 3, to: 5 },
+            tests: [
+              {
+                kind: 'structure',
+                label: 'Drawing has a CreateShape method taking the tag',
+                rule: { on: 'method', inClass: 'Drawing', name: 'CreateShape', params: 1, returns: 'Shape' },
+              },
+              {
+                kind: 'output',
+                label: 'Each known tag builds the matching kind, and an unknown one is rejected',
+                expect: 'Rectangle\nCircle\nLine\nrejected: Unknown shape kind in save file: \'Hexagon\'.',
+              },
+              {
+                kind: 'forbid',
+                label: 'An unknown tag is not quietly turned into a rectangle',
+                pattern: 'return new MyRectangle\\(\\);[\\s\\S]*default:[\\s\\S]*return',
+                message:
+                  'The default case has to throw, not return a shape. A corrupt save file should say so.',
+              },
+            ],
+            harness: `public abstract class Shape
+{
+    public abstract string TypeName { get; }
+}
+
+public class MyRectangle : Shape
+{
+    public override string TypeName { get { return "Rectangle"; } }
+}
+
+public class MyCircle : Shape
+{
+    public override string TypeName { get { return "Circle"; } }
+}
+
+public class MyLine : Shape
+{
+    public override string TypeName { get { return "Line"; } }
+}
+
+public class __Check
+{
+    public static void Main()
+    {
+        Console.WriteLine(Drawing.CreateShape("Rectangle").TypeName);
+        Console.WriteLine(Drawing.CreateShape("Circle").TypeName);
+        Console.WriteLine(Drawing.CreateShape("Line").TypeName);
+
+        try
+        {
+            Drawing.CreateShape("Hexagon");
+            Console.WriteLine("no error");
+        }
+        catch (InvalidDataException e)
+        {
+            Console.WriteLine("rejected: " + e.Message);
+        }
+    }
+}`,
+            hints: [
+              'A `switch` on `kind` with one `case` per tag, each returning a `new` shape.',
+              'The tags are the exact strings TypeName returns — "Rectangle", "Circle", "Line". A typo here loads nothing.',
+              'The default throws: `throw new InvalidDataException("Unknown shape kind in save file: \'" + kind + "\'.");`',
+            ],
+            tool: 'tests',
+          },
+        },
+        {
+          id: 'w7-71-drawing',
+          title: 'Drawing.Save and Drawing.Load',
+          blocks: [
+            {
+              t: 'text',
+              md: `The two ends. \`Save\` writes the header then walks the list; \`Load\` reads the header then goes round a \`for\` loop \`count\` times, and each pass does three things in order: **read the tag, create the shape, let the shape read itself.**`,
+            },
+            {
+              t: 'compare',
+              title: 'The two halves of the format, side by side',
+              left: {
+                title: 'Drawing.Save',
+                tone: 'neutral',
+                code: `writer.WriteLine(SplashKit.ColorToString(_background));
+writer.WriteLine(_shapes.Count);
+
+foreach (Shape shape in _shapes)
+{
+    writer.WriteLine(shape.TypeName);
+    shape.SaveTo(writer);
+}`,
+              },
+              right: {
+                title: 'Drawing.Load',
+                tone: 'neutral',
+                code: `_background = SplashKit.StringToColor(Shape.ReadLine(reader));
+int count = Convert.ToInt32(Shape.ReadLine(reader));
+
+_shapes.Clear();
+
+for (int i = 0; i < count; i++)
+{
+    string kind = Shape.ReadLine(reader);
+    Shape shape = CreateShape(kind);
+    shape.LoadFrom(reader);
+    _shapes.Add(shape);
+}`,
+              },
+            },
+            {
+              t: 'callout',
+              tone: 'trap',
+              title: 'Clear the list before loading into it',
+              md: '`Load` **replaces** the drawing. Miss `_shapes.Clear()` and loading appends to whatever was on screen, so pressing O twice gives you twenty shapes from a ten-shape file — and every one of them is a duplicate sitting exactly on top of another.',
+            },
+            {
+              t: 'callout',
+              tone: 'note',
+              title: 'Two keys in Program.cs',
+              md: 'The main loop gets **S** to save and **O** to open. Guard the load with `File.Exists(SaveFileName)` — pressing O before ever pressing S should print a message, not throw a `FileNotFoundException` at someone who did nothing wrong.',
+            },
+            {
+              t: 'text',
+              md: `Write \`Load\`. \`Save\` is given, so the harness writes a real two-shape file with it and then asks your \`Load\` to rebuild it — the full round trip, tags and all.`,
+            },
+          ],
+          exercise: {
+            prompt:
+              'Write Drawing.Load so it restores the background, then rebuilds exactly count shapes — reading the tag, creating the shape, and letting it load itself.',
+            seed: `public class Drawing
+{
+    private List<Shape> _shapes;
+    private Color _background;
+
+    public Drawing(Color background)
+    {
+        _shapes = new List<Shape>();
+        _background = background;
+    }
+
+    public Color Background { get { return _background; } set { _background = value; } }
+    public int ShapeCount { get { return _shapes.Count; } }
+    public List<Shape> Shapes { get { return _shapes; } }
+
+    public void AddShape(Shape shape) { _shapes.Add(shape); }
+
+    public void Save(string filename)
+    {
+        StreamWriter writer = new StreamWriter(filename);
+        writer.WriteLine(SplashKit.ColorToString(_background));
+        writer.WriteLine(_shapes.Count);
+
+        foreach (Shape shape in _shapes)
+        {
+            writer.WriteLine(shape.TypeName);
+            shape.SaveTo(writer);
+        }
+
+        writer.Close();
+    }
+
+    public void Load(string filename)
+    {
+        StreamReader reader = new StreamReader(filename);
+
+        reader.Close();
+    }
+
+    public static Shape CreateShape(string kind)
+    {
+        switch (kind)
+        {
+            case "Rectangle": return new MyRectangle();
+            case "Circle": return new MyCircle();
+            default: throw new InvalidDataException("Unknown shape kind: '" + kind + "'.");
+        }
+    }
+}`,
+            editable: { from: 35, to: 37 },
+            tests: [
+              {
+                kind: 'output',
+                label: 'A saved two-shape drawing reloads with its background, count, kinds and fields intact',
+                expect: '#ffffffff\n2\nCircle {{circleRadius}}\nRectangle {{shapeParam}}',
+              },
+              {
+                kind: 'output',
+                label: 'Loading twice does not double the shape count',
+                expect: '#ffffffff\n2\nCircle {{circleRadius}}\nRectangle {{shapeParam}}',
+              },
+              {
+                kind: 'forbid',
+                label: 'The shape kinds come from the file\'s tags, not from a fixed order',
+                // Only an *assignment* is forbidden. The seed's own CreateShape
+                // returns `new MyRectangle();` directly, and forbid checks run
+                // against the whole source — so matching every `new` at all
+                // would make the step unpassable.
+                pattern: '=\\s*new My(Circle|Rectangle|Line)\\s*\\(',
+                message:
+                  'Let CreateShape build the shapes from the tag you read. Hard-coding the kinds here works on this one file and nothing else.',
+              },
+            ],
+            harness: `public abstract class Shape
+{
+    private Color _color;
+    private float _x;
+    private float _y;
+
+    public Shape(Color color) { _color = color; }
+
+    public Color Color { get { return _color; } set { _color = value; } }
+    public float X { get { return _x; } set { _x = value; } }
+    public float Y { get { return _y; } set { _y = value; } }
+
+    public abstract string TypeName { get; }
+    public abstract string Describe();
+
+    public virtual void SaveTo(StreamWriter writer)
+    {
+        writer.WriteLine(SplashKit.ColorToString(Color));
+        writer.WriteLine(X);
+        writer.WriteLine(Y);
+    }
+
+    public virtual void LoadFrom(StreamReader reader)
+    {
+        Color = SplashKit.StringToColor(ReadLine(reader));
+        X = Convert.ToSingle(ReadLine(reader));
+        Y = Convert.ToSingle(ReadLine(reader));
+    }
+
+    public static string ReadLine(StreamReader reader)
+    {
+        string line = reader.ReadLine();
+        if (line == null) { return ""; }
+        return line;
+    }
+}
+
+public class MyCircle : Shape
+{
+    private int _radius;
+
+    public MyCircle(int radius) : base(Color.Blue) { _radius = radius; }
+    public MyCircle() : this({{circleRadius}}) { }
+
+    public override string TypeName { get { return "Circle"; } }
+    public override string Describe() { return "Circle " + _radius; }
+
+    public override void SaveTo(StreamWriter writer)
+    {
+        base.SaveTo(writer);
+        writer.WriteLine(_radius);
+    }
+
+    public override void LoadFrom(StreamReader reader)
+    {
+        base.LoadFrom(reader);
+        _radius = Convert.ToInt32(ReadLine(reader));
+    }
+}
+
+public class MyRectangle : Shape
+{
+    private int _width;
+    private int _height;
+
+    public MyRectangle(int width, int height) : base(Color.Green) { _width = width; _height = height; }
+    public MyRectangle() : this({{shapeParam}}, {{shapeParam}}) { }
+
+    public override string TypeName { get { return "Rectangle"; } }
+    public override string Describe() { return "Rectangle " + _width; }
+
+    public override void SaveTo(StreamWriter writer)
+    {
+        base.SaveTo(writer);
+        writer.WriteLine(_width);
+        writer.WriteLine(_height);
+    }
+
+    public override void LoadFrom(StreamReader reader)
+    {
+        base.LoadFrom(reader);
+        _width = Convert.ToInt32(ReadLine(reader));
+        _height = Convert.ToInt32(ReadLine(reader));
+    }
+}
+
+public class __Check
+{
+    public static void Main()
+    {
+        Drawing original = new Drawing(Color.White);
+        original.AddShape(new MyCircle());
+        original.AddShape(new MyRectangle());
+        original.Save("drawing.txt");
+
+        Drawing reloaded = new Drawing(Color.Black);
+        reloaded.Load("drawing.txt");
+        reloaded.Load("drawing.txt");
+
+        Console.WriteLine(SplashKit.ColorToString(reloaded.Background));
+        Console.WriteLine(reloaded.ShapeCount);
+
+        foreach (Shape s in reloaded.Shapes)
+        {
+            Console.WriteLine(s.Describe());
+        }
+    }
+}`,
+            hints: [
+              'Four things before the loop: read the background, read the count, clear the list, then loop that many times.',
+              'Each pass is three statements — read the tag, `CreateShape(kind)`, then `shape.LoadFrom(reader)` — and then add it to the list.',
+              'Use `Shape.ReadLine(reader)` for every line, and `Convert.ToInt32` for the count. Do not forget `_shapes.Clear()`.',
+            ],
+            tool: 'tests',
+          },
+        },
+        {
+          id: 'w7-71-parsons',
+          title: 'The load loop, in order',
+          blocks: [
+            {
+              t: 'text',
+              md: `One last pass over the order, without the typing. Every line below is needed exactly once.`,
+            },
+            {
+              t: 'parsons',
+              caption: 'Drawing.cs',
+              prompt: 'Reassemble Drawing.Load.',
+              lines: [
+                'public class Drawing',
+                '{',
+                '    public void Load(string filename)',
+                '    {',
+                '        StreamReader reader = new StreamReader(filename);',
+                '        _background = SplashKit.StringToColor(Shape.ReadLine(reader));',
+                '        int count = Convert.ToInt32(Shape.ReadLine(reader));',
+                '        _shapes.Clear();',
+                '        for (int i = 0; i < count; i++)',
+                '        {',
+                '            string kind = Shape.ReadLine(reader);',
+                '            Shape shape = CreateShape(kind);',
+                '            shape.LoadFrom(reader);',
+                '            _shapes.Add(shape);',
+                '        }',
+                '        reader.Close();',
+                '    }',
+                '}',
+              ],
+              explain:
+                'The header is read once, outside the loop; the tag is read inside it, once per shape. `CreateShape` has to come before `LoadFrom` — there is no object to load into until it returns — and `Clear` has to come before the loop, or a second load doubles the drawing.',
+            },
+          ],
+        },
+        {
+          id: 'w7-71-recall',
+          title: 'Before your lab',
+          blocks: [
+            {
+              t: 'recall',
+              prompt:
+                'Your tutor asks how saving and loading works in your program. Answer without looking: what is in the file, in what order, and which class writes each part?',
+              points: [
+                'Line 1 is the background colour, line 2 is the shape count — both written by Drawing.Save',
+                'Then, per shape: a type tag from TypeName, followed by that shape\'s fields',
+                'Shape.SaveTo writes the four fields every shape has; each subclass overrides it, calls base first, then writes its own',
+                'LoadFrom mirrors SaveTo exactly, because a text file carries no field names — only order',
+                'Load reads the tag, CreateShape turns it into an object, then that object reads its own fields',
+                'CreateShape throws InvalidDataException on an unknown tag rather than guessing',
+                '_shapes.Clear() before the loop, so loading replaces the drawing instead of appending to it',
+              ],
+              nudge:
+                'Walk the file from the top. For each line, ask which method wrote it — that is the whole design.',
+            },
+            {
+              t: 'callout',
+              tone: 'key',
+              title: 'What carries over to Task 8.2',
+              md: 'The pattern, unchanged: a `virtual SaveTo`/`LoadFrom` on the base class writing the shared fields, an override per subclass calling `base` first. Next week it is `GameObject` and `Player` instead of `Shape` and `MyCircle`, and the file is three lines instead of sixty — but it is the same two methods and the same rule about order.',
+            },
+          ],
+        },
+      ],
+    },
+
+    // ================================================================ lesson 6
+    {
       id: 'w7-player-design',
       title: 'Designing next week\'s Player',
       kind: 'concept',
@@ -1814,7 +2869,7 @@ public class __Check
       ],
     },
 
-    // ================================================================ lesson 6
+    // ================================================================ lesson 7
     /*
      * The week's own test — same shape as w2..w6's checkpoints. Week 7 is
      * unusual in having no lab to check understanding against, so this one
@@ -2086,7 +3141,7 @@ public class Program
       ],
     },
 
-    // ================================================================ lesson 7
+    // ================================================================ lesson 8
     {
       id: 'w7-interview',
       title: 'Interview drill',
@@ -2111,7 +3166,13 @@ public class Program
   ],
 };
 
-/** Interview questions for Week 7 — design and debugging, not a submission. */
+/**
+ * Interview questions for Week 7.
+ *
+ * The last two are about Task 7.1 itself, because the lab session verifies it
+ * by asking — and "why does base.SaveTo come first" is the question a student
+ * who copied the pattern without understanding it cannot answer.
+ */
 export const week7Interview: InterviewQuestion[] = [
   {
     id: 'w7-q1',
@@ -2186,5 +3247,31 @@ export const week7Interview: InterviewQuestion[] = [
       'A filled diamond would be composition, which would wrongly say items die with the inventory',
     ],
     aboutStep: 'w7-pd-relationships',
+  },
+  {
+    id: 'w7-q7',
+    question:
+      'In your save code, every override calls base.SaveTo before writing its own fields. Why that order, and what breaks if one of them does it the other way round?',
+    lookingFor: [
+      'It fixes the position of the four shared fields — every shape\'s block starts the same way',
+      'LoadFrom can therefore read the shared fields without yet knowing which kind it is reading',
+      'SaveTo and LoadFrom have to agree on order, because a text file carries no field names',
+      'Reversing it in one subclass breaks only that kind — the rest of the file still loads, so it looks like a data problem rather than a code one',
+      'Nothing throws: the values are all valid, just read into the wrong fields',
+    ],
+    aboutStep: 'w7-71-saveto',
+  },
+  {
+    id: 'w7-q8',
+    question:
+      'Drawing.Save asks each shape for its TypeName, but CreateShape switches on a string. Why is a switch acceptable in one and not the other?',
+    lookingFor: [
+      'Save has a Shape object in hand, so it can ask it — the object already knows what it is',
+      'CreateShape has only text read from a file; there is no object to ask yet',
+      'Turning text into a type is the one direction polymorphism cannot do for you',
+      'Once CreateShape returns, everything afterwards goes through the hierarchy again',
+      'The default case throws InvalidDataException rather than guessing a kind',
+    ],
+    aboutStep: 'w7-71-factory',
   },
 ];
