@@ -1998,6 +1998,23 @@ export class Interpreter implements BuiltinHost {
     throw new RuntimeError(`Unsupported operator '${op}'.`, pos);
   }
 
+  /**
+   * Run a lambda to completion synchronously — see `BuiltinHost.callSync`.
+   *
+   * `tryCallFunc` is a generator because an ordinary call has to be
+   * interruptible (step limits, Console I/O). A `List.Sort` comparator is
+   * neither long-running nor worth interleaving, and the builtin calling it is
+   * not a generator, so here the generator is simply driven to its return.
+   */
+  callSync(fn: Value, args: Value[], pos: Pos): Value | undefined {
+    if (fn.k !== 'ref') return undefined;
+    if (this.heap.tryGet(fn.id)?.k !== 'func') return undefined;
+    const gen = this.tryCallFunc(fn, args, pos);
+    let step = gen.next();
+    while (!step.done) step = gen.next();
+    return step.value;
+  }
+
   applyBinary(op: string, l: Value, r: Value, pos: Pos): Value {
     // String concatenation wins over arithmetic when either side is a string.
     if (op === '+' && (this.isString(l) || this.isString(r))) {

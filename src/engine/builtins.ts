@@ -44,6 +44,19 @@ export interface BuiltinHost {
   asInt(v: Value, pos: Pos): number;
   mkException(type: string, message: string, pos?: Pos): Error;
   applyBinary(op: string, l: Value, r: Value, pos: Pos): Value;
+  /**
+   * Run a student lambda synchronously and return its value.
+   *
+   * `List.Sort((a, b) => ...)` needs to call back into interpreted code from
+   * inside a builtin, and `listCall` is a plain function rather than a
+   * generator — so it cannot `yield*` the way a normal call does. This runs
+   * the lambda's generator to completion without yielding, which is safe for
+   * a comparator (a short expression, no `await`, no Console I/O worth
+   * interleaving) and is deliberately not offered for anything else.
+   *
+   * Returns `undefined` when `fn` is not a lambda, so callers can fall back.
+   */
+  callSync(fn: Value, args: Value[], pos: Pos): Value | undefined;
 }
 
 export type BGen = Generator<Tick, Value | undefined, void>;
@@ -79,6 +92,9 @@ export function installBuiltins(host: BuiltinHost): BuiltinRegistry {
     if (v.k === 'enum') return v.v;
     throw host.mkException('ArgumentException', `Expected a number but got a ${typeNameOf(v, heap)}.`, pos);
   };
+  /** Is this value a student lambda, as `List.Sort(cmp)` expects? */
+  const isLambda = (v: Value): boolean =>
+    v.k === 'ref' && heap.tryGet(v.id)?.k === 'func';
 
   const splashkit = installSplashKit(host);
   const fs = installFileSystem(host);
@@ -768,13 +784,26 @@ export function installBuiltins(host: BuiltinHost): BuiltinRegistry {
       case 'IndexOf': return mkInt(obj.elements.findIndex((e) => valuesEqual(e, args[0], heap)));
       case 'Clear': obj.elements.length = 0; return VOID;
       case 'Reverse': obj.elements.reverse(); return VOID;
-      case 'Sort':
+      case 'Sort': {
+        // `Sort((a, b) => ...)` — the comparison delegate decides the order.
+        // Without this branch the comparator was accepted and then ignored,
+        // and a list of objects failed with "Expected a number but got a Bag"
+        // however correct the lambda was. Lab 9's verification task sorts a
+        // List<IHaveInventory> by a property, which is exactly this shape.
+        if (args.length === 1 && isLambda(args[0])) {
+          obj.elements.sort((a, b) => {
+            const r = host.callSync(args[0], [a, b], pos);
+            return r === undefined ? 0 : host.asInt(r, pos);
+          });
+          return VOID;
+        }
         obj.elements.sort((a, b) => {
           const sa = host.stringOf(a), sb = host.stringOf(b);
           if (sa !== undefined && sb !== undefined) return sa.localeCompare(sb);
           return num(a, pos) - num(b, pos);
         });
         return VOID;
+      }
       case 'ToArray':
         return heap.allocRef({ k: 'array', elementType: obj.elementType, elements: [...obj.elements] });
       case 'ToList':

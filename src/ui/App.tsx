@@ -14,6 +14,7 @@ import { week5, week5Interview } from '@/content/week5';
 import { week6, week6Interview } from '@/content/week6';
 import { week7, week7Interview } from '@/content/week7';
 import { week8, week8Interview } from '@/content/week8';
+import { week9, week9Interview } from '@/content/week9';
 import type { InterviewQuestion, Week } from '@/content/types';
 import { isProfileComplete } from '@/content/personalize';
 import { DEFAULT_EXAM, EXAM_BY_ID, type ExamId } from '@/content/focus/exams';
@@ -41,7 +42,7 @@ import { CommandPalette, type Command } from './CommandPalette';
 // loads until "Concept focus" is actually clicked.
 const FocusMode = lazy(() => import('./focus/FocusMode').then((m) => ({ default: m.FocusMode })));
 
-const WEEKS: Week[] = [week2, week3, week4, week5, week6, week7, week8];
+const WEEKS: Week[] = [week2, week3, week4, week5, week6, week7, week8, week9];
 const INTERVIEWS: Record<number, InterviewQuestion[]> = {
   [week2.number]: week2Interview,
   [week3.number]: week3Interview,
@@ -50,6 +51,7 @@ const INTERVIEWS: Record<number, InterviewQuestion[]> = {
   [week6.number]: week6Interview,
   [week7.number]: week7Interview,
   [week8.number]: week8Interview,
+  [week9.number]: week9Interview,
 };
 
 type View =

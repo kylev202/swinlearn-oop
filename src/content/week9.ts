@@ -145,6 +145,56 @@ const BAG = `public class Bag : Item
     }
 }`;
 
+/**
+ * Bag and Player once Task 9.2 has added the interface to their headers.
+ *
+ * Deliberately identical to `BAG`/`PLAYER` below apart from the header: the
+ * whole point of the task is that implementing the interface requires **no
+ * change to either body**, and a harness that quietly rewrote them would
+ * undercut the lesson that says so.
+ */
+const BAG_WITH_INTERFACE = `public class Bag : Item, IHaveInventory
+{
+    private Inventory _inventory = new Inventory();
+
+    public Bag(string[] ids, string name, string desc) : base(ids, name, desc) { }
+
+    public Inventory Inventory { get { return _inventory; } }
+
+    public GameObject Locate(string id)
+    {
+        if (AreYou(id)) { return this; }
+        else if (_inventory.HasItem(id)) { return _inventory.Fetch(id); }
+        else { return null; }
+    }
+
+    public override string FullDescription
+    {
+        get { return "In the " + Name + " you can see:\\n" + Inventory.ItemList; }
+    }
+}`;
+
+const PLAYER_WITH_INTERFACE = `public class Player : GameObject, IHaveInventory
+{
+    private Inventory _inventory = new Inventory();
+
+    public Player(string name, string desc)
+        : base(new string[] { "me", "inventory" }, name, desc) { }
+
+    public Inventory Inventory { get { return _inventory; } }
+
+    public GameObject Locate(string id)
+    {
+        if (AreYou(id)) { return this; }
+        return _inventory.Fetch(id);
+    }
+
+    public override string FullDescription
+    {
+        get { return "You are " + Name + ", " + description + "\\nYou are carrying:\\n" + _inventory.ItemList; }
+    }
+}`;
+
 /** The Week 8 Player, which Task 9.2 makes implement the new interface. */
 const PLAYER = `public class Player : GameObject
 {
@@ -533,7 +583,624 @@ ${BAG}`,
         },
       ],
     },
+    {
+      id: 'w9-task92',
+      title: 'Task 9.2 — IHaveInventory',
+      kind: 'lab',
+      minutes: 40,
+      assessment: '2% of your final grade',
+      summary:
+        'Two classes already do the same job. Name that job, and the code that uses them stops caring which one it has.',
+      steps: [
+        {
+          id: 'w9-92-why',
+          title: 'The duplication that is asking for a name',
+          blocks: [
+            {
+              t: 'text',
+              md: `Look at what you have just built next to what Week 8 built.
+
+Both \`Player\` and \`Bag\` hold items. Both answer \`Locate(string id)\` by checking themselves first and then their inventory. Both have a \`Name\`. Neither knows about the other, and they share no parent — \`Player\` extends \`GameObject\`, \`Bag\` extends \`Item\`.`,
+            },
+            {
+              t: 'compare',
+              title: 'The same two members, in two unrelated classes',
+              left: {
+                title: 'Player : GameObject',
+                tone: 'neutral',
+                code: `public GameObject Locate(string id)
+{
+    if (AreYou(id)) { return this; }
+    return _inventory.Fetch(id);
+}
+
+public string Name { get { return name; } }`,
+              },
+              right: {
+                title: 'Bag : Item',
+                tone: 'neutral',
+                code: `public GameObject Locate(string id)
+{
+    if (AreYou(id)) { return this; }
+    else if (_inventory.HasItem(id)) { ... }
+    else { return null; }
+}
+
+public string Name { get { return name; } }`,
+              },
+            },
+            {
+              t: 'callout',
+              tone: 'key',
+              title: 'This is the gap interfaces fill',
+              md: '"Can contain other items" is a **capability**, not an ancestry. You cannot express it with inheritance here — C# allows one base class, and both classes already have a different one. An interface says *what an object can do* without saying *what it is*.',
+            },
+            {
+              t: 'umlSpec',
+              caption: 'Lab9.pdf page 5 — two classes, one contract',
+              source: `public interface IHaveInventory
+{
+    GameObject Locate(string id);
+    string Name { get; }
+}
+
+public class Player : GameObject
+{
+    public GameObject Locate(string id) { return null; }
+}
+
+public class Bag : Item
+{
+    public GameObject Locate(string id) { return null; }
+}`,
+            },
+            {
+              t: 'quiz',
+              question: 'Why is `Inventory` deliberately **not** on this interface?',
+              options: [
+                'Because the only client — the look command — needs to locate things and name them, not to reach into storage',
+                'Because interfaces cannot declare properties',
+                'Because Player and Bag store their items in different types',
+                'Because Inventory is a class, and interfaces may only mention primitives',
+              ],
+              answer: 0,
+              why: [
+                '',
+                'They can. `Name { get; }` right there is one.',
+                'Both use `Inventory`. The reason is about design, not types.',
+                'An interface member may have any type at all.',
+              ],
+              explain:
+                'Keep an interface as small as its clients require. Exposing `Inventory` would couple every caller to *how* containment is implemented, and the whole point of the contract is that they should not know. This is low coupling and the antisocial-class instinct from Week 8, applied to an interface.',
+            },
+            {
+              t: 'callout',
+              tone: 'note',
+              title: 'Why `Name` has to be on it at all',
+              md: 'Week 10’s look command returns messages like *"I can\'t find the pen in the small bag"*. To write "small bag" it needs the container\'s name — and all it is holding is an `IHaveInventory`. Without `Name` on the contract, that message is impossible.',
+            },
+          ],
+          exercise: {
+            prompt:
+              'Declare the IHaveInventory interface exactly as the UML specifies: a Locate method and a read-only Name property, and nothing else.',
+            seed: `public interface IHaveInventory
+{
+
+}`,
+            editable: { from: 2, to: 3 },
+            tests: [
+              {
+                kind: 'structure',
+                label: 'IHaveInventory exists as an interface',
+                rule: { on: 'class', name: 'IHaveInventory', exists: true },
+              },
+              {
+                kind: 'structure',
+                label: 'It declares Locate, taking an id and returning a GameObject',
+                rule: {
+                  on: 'method',
+                  inClass: 'IHaveInventory',
+                  name: 'Locate',
+                  params: 1,
+                  returns: 'GameObject',
+                },
+              },
+              {
+                // The interpreter does not verify interface conformance, so
+                // the output check below passes with or without `Name` — the
+                // concrete classes have it either way. This is what actually
+                // holds the student to the UML.
+                kind: 'structure',
+                label: 'It declares a read-only Name property, which the look command needs',
+                rule: {
+                  on: 'property',
+                  inClass: 'IHaveInventory',
+                  name: 'Name',
+                  hasGet: true,
+                  hasSet: false,
+                },
+              },
+              {
+                kind: 'output',
+                label: 'A Player and a Bag can both be held in an IHaveInventory variable',
+                expect: 'player: Amy\nbag: Tool Bag\nlocated via contract: A Hammer',
+              },
+            ],
+            harness: `${FOUNDATION}
+
+${BAG_WITH_INTERFACE}
+
+${PLAYER_WITH_INTERFACE}
+
+public class __Check
+{
+    public static void Main()
+    {
+        IHaveInventory asPlayer = new Player("Amy", "an explorer");
+        Bag bag = new Bag(new string[] { "bag", "tool" }, "Tool Bag", "Tools.");
+        Item hammer = new Item(new string[] { "hammer" }, "A Hammer", "Heavy.");
+        bag.Inventory.Put(hammer);
+        IHaveInventory asBag = bag;
+
+        Console.WriteLine("player: " + asPlayer.Name);
+        Console.WriteLine("bag: " + asBag.Name);
+        Console.WriteLine("located via contract: " + asBag.Locate("hammer").Name);
+    }
+}`,
+            hints: [
+              'An interface member has no body and no access modifier — just the signature, ending in a semicolon.',
+              'The method is `GameObject Locate(string id);`.',
+              'A read-only property in an interface is `string Name { get; }` — a getter and no setter.',
+            ],
+            tool: 'tests',
+          },
+        },
+        {
+          id: 'w9-92-implement',
+          title: 'Declaring that you keep the contract',
+          blocks: [
+            {
+              t: 'text',
+              md: `The sheet gives the two class headers verbatim:
+
+- \`public class Bag : Item, IHaveInventory\`
+- \`public class Player : GameObject, IHaveInventory\`
+
+Base class first, then interfaces. And here is the part that surprises people: **neither class body changes at all.** Both already had \`Locate\` and \`Name\` with exactly the right signatures. Adding the interface to the header does not give them new work — it *records* that the work they were already doing has a name.`,
+            },
+            {
+              t: 'callout',
+              tone: 'key',
+              title: 'What the compiler now checks for you',
+              md: 'Before, `Player.Locate` and `Bag.Locate` matching each other was a coincidence maintained by hand. Now it is enforced: rename either one, or change its return type, and the class stops compiling. That is the real purchase of writing the interface down.',
+            },
+            {
+              t: 'quiz',
+              question:
+                'You add `, IHaveInventory` to `Bag`’s header but its `Locate` returns `Item` rather than `GameObject`. In Visual Studio, what happens?',
+              options: [
+                'It will not compile — `Bag` does not satisfy `IHaveInventory`',
+                'It compiles and works, since an `Item` is a `GameObject`',
+                'It compiles but throws at runtime the first time `Locate` is called',
+                'It compiles with a warning you can safely ignore',
+              ],
+              answer: 0,
+              why: [
+                '',
+                'A return type that happens to be more specific does not satisfy the contract. C# matches interface members by **exact** signature.',
+                'This is caught at compile time. The program never gets to run.',
+                'It is an error, not a warning.',
+              ],
+              explain:
+                'An interface is checked member by member, on exact signature, before anything runs. "Close enough" is not a thing — and that strictness is exactly what makes the look command safe to write against the contract next week.',
+            },
+            {
+              t: 'callout',
+              tone: 'warn',
+              title: 'This playground will not catch that for you',
+              md: 'The interpreter here does **not** verify that a class implements every member of an interface it declares — a missing `Name` runs quietly instead of failing. Visual Studio does, and it is a compile error there. So treat the question above as being about the real compiler, and do not rely on Run to tell you your class satisfies the contract.',
+            },
+            {
+              t: 'callout',
+              tone: 'trap',
+              title: 'The order in the header is not optional',
+              md: '`public class Bag : IHaveInventory, Item` does not compile. The base class, if there is one, comes first.',
+            },
+          ],
+        },
+        {
+          id: 'w9-92-polymorphism',
+          title: 'One list, two kinds of thing',
+          blocks: [
+            {
+              t: 'text',
+              md: `Step 8 of the sheet asks for the payoff: a \`List<IHaveInventory>\` holding a \`Player\` **and** a \`Bag\`, then a loop that prints information about each.
+
+This is the thing you could not write yesterday. There is no type that both classes share except \`object\` — and \`object\` cannot \`Locate\` anything.`,
+            },
+            {
+              t: 'code',
+              caption: 'Lab9.pdf page 6, abbreviated',
+              code: `public class Program
+{
+    public static void Main()
+    {
+        List<IHaveInventory> myContainers = new List<IHaveInventory>();
+
+        Player testPlayer = new Player("James", "an explorer");
+        myContainers.Add(testPlayer);
+
+        Bag testToolBag = new Bag(new string[] { "bag", "tool" }, "Tools Bag", "A bag that contains tools");
+        Item testItem2 = new Item(new string[] { "stew", "beef" }, "A Beef Stew", "A hearty beef stew");
+        testToolBag.Inventory.Put(testItem2);
+        myContainers.Add(testToolBag);
+    }
+}`,
+            },
+            {
+              t: 'callout',
+              tone: 'note',
+              title: 'The sheet’s own hint, and what it is really about',
+              md: '> *Hint. You need to convert an object in the list to the correct type before printing out the information.*\n\nTrue only for the members that are **not** on the contract. `Name` and `Locate` need no cast at all. It is `Inventory` — which you deliberately left off — that forces one.',
+            },
+            {
+              t: 'compare',
+              title: 'Two ways to write that loop',
+              left: {
+                title: 'Casting back, for what the contract omits',
+                tone: 'neutral',
+                code: `foreach (IHaveInventory c in myContainers)
+{
+    Console.WriteLine(c.Name);
+
+    if (c is Bag)
+    {
+        Bag b = (Bag)c;
+        Console.WriteLine(b.Inventory.ItemList);
+    }
+}`,
+              },
+              right: {
+                title: 'No cast needed, for what it includes',
+                tone: 'good',
+                code: `foreach (IHaveInventory c in myContainers)
+{
+    Console.WriteLine(c.Name);
+    Console.WriteLine(c.Locate("stew"));
+}`,
+              },
+            },
+            {
+              t: 'callout',
+              tone: 'trap',
+              title: 'A chain of `is` checks is a smell, and Week 8 named it',
+              md: 'If the loop grows an `is Player` branch beside the `is Bag` branch, you have rebuilt the type switch that polymorphism exists to delete. The question to ask is always *"should this behaviour be on the contract instead?"* — see the design-smells step in Week 8, and GRASP’s Polymorphism principle in the Week 9 revision notes.',
+            },
+          ],
+          exercise: {
+            prompt:
+              'Fill in Main: build a List<IHaveInventory> holding the player and the bag, then loop over it printing each container’s name followed by what it finds for "stew".',
+            seed: `public class Program
+{
+    public static void Main()
+    {
+        Player player = new Player("James", "an explorer");
+        Bag toolBag = new Bag(new string[] { "bag", "tool" }, "Tools Bag", "A bag of tools");
+        Item stew = new Item(new string[] { "stew", "beef" }, "A Beef Stew", "Hearty.");
+        toolBag.Inventory.Put(stew);
+
+        List<IHaveInventory> myContainers = new List<IHaveInventory>();
+
+    }
+}`,
+            editable: { from: 10, to: 11 },
+            tests: [
+              {
+                kind: 'output',
+                label: 'Both containers are visited through the interface',
+                expect: 'James: nothing\nTools Bag: A Beef Stew',
+              },
+              {
+                kind: 'forbid',
+                label: 'Loop over the interface, not over the concrete classes',
+                pattern: 'foreach\\s*\\(\\s*(Player|Bag)\\s',
+                message:
+                  'Iterating as `Player` or `Bag` defeats the exercise. The list is a `List<IHaveInventory>`, so the loop variable should be an `IHaveInventory`.',
+              },
+            ],
+            harness: `${FOUNDATION}
+
+public interface IHaveInventory
+{
+    GameObject Locate(string id);
+    string Name { get; }
+}
+
+${BAG_WITH_INTERFACE}
+
+${PLAYER_WITH_INTERFACE}`,
+            hints: [
+              'Add both to the list first: `myContainers.Add(player);` and `myContainers.Add(toolBag);`.',
+              'The loop variable is the interface type: `foreach (IHaveInventory c in myContainers)`.',
+              '`Locate` returns null when nothing matches, so print `"nothing"` in that case — `GameObject found = c.Locate("stew"); if (found == null) { ... } else { ... found.Name ... }`.',
+            ],
+            tool: 'tests',
+          },
+        },
+        {
+          id: 'w9-92-verify',
+          title: 'Verification task — IdentifierCount',
+          blocks: [
+            {
+              t: 'callout',
+              tone: 'note',
+              title: 'This is the bit your tutor asks for in the lab',
+              md: 'The numbered tasks above are what you submit. This is the extra your lab instructor sets on the day, and the short interview is about it. It is small, and it is a genuinely good test of whether the interface makes sense to you.',
+            },
+            {
+              t: 'text',
+              md: `**The task.** Add \`IdentifierCount\` to \`IHaveInventory\` — the number of identifiers an object answers to. Then build a list of several players and bags, **sort it by that count**, and print the result.
+
+Two things make this worth doing. First, the property has to be added in *three* places: the interface, and both implementing classes — which is the moment you feel what "contract" means. Second, sorting a \`List<IHaveInventory>\` is only possible because every element answers the same question, whatever it actually is.`,
+            },
+            {
+              t: 'code',
+              caption: 'From lab9/9.2 — GameObject.cs and IHaveInventory.cs',
+              code: `public interface IHaveInventory
+{
+    GameObject Locate(string id);
+    string Name { get; }
+
+    //------------Verification Task 9---------------------------
+    int IdentifierCount { get; }
+    //----------------------------------------------------------
+}`,
+            },
+            {
+              t: 'callout',
+              tone: 'key',
+              title: 'Where the implementation goes',
+              md: 'Neither `Player` nor `Bag` holds the identifier list — `IdentifiableObject` does, two levels up. So the property belongs **there**, as `public int IdentifierCount { get { return _identifiers.Count; } }`, and both classes inherit it and satisfy the interface without writing a line. Information expert, exactly as GRASP describes it.',
+            },
+            {
+              t: 'code',
+              caption: 'The sort, from lab9/9.2/SwinAdventure/Program.cs',
+              code: `containers.Sort((a, b) => a.IdentifierCount.CompareTo(b.IdentifierCount));`,
+            },
+          ],
+          exercise: {
+            prompt:
+              'Add IdentifierCount to IdentifiableObject so both classes satisfy the extended interface, then sort the containers by it, smallest first.',
+            seed: `public class IdentifiableObject
+{
+    private List<string> _identifiers = new List<string>();
+
+    public IdentifiableObject(string[] ids)
+    {
+        foreach (string id in ids) { _identifiers.Add(id.ToLower()); }
+    }
+
+    public bool AreYou(string id) { return _identifiers.Contains(id.ToLower()); }
+    public string FirstID() { return _identifiers[0]; }
+    public void AddIdentifier(string id) { _identifiers.Add(id.ToLower()); }
+
+}`,
+            editable: { from: 13, to: 14 },
+            tests: [
+              {
+                kind: 'structure',
+                label: 'IdentifierCount is a read-only property on IdentifiableObject',
+                rule: {
+                  on: 'property',
+                  inClass: 'IdentifiableObject',
+                  name: 'IdentifierCount',
+                  hasGet: true,
+                  hasSet: false,
+                },
+              },
+              {
+                kind: 'output',
+                label: 'Both kinds of container report their count, and the list sorts by it',
+                expect: 'Tool Bag 2\nAmy 3\nBig Bag 4',
+              },
+            ],
+            harness: `public abstract class GameObject : IdentifiableObject
+{
+    protected string name;
+    protected string description;
+
+    public GameObject(string[] ids, string name, string description) : base(ids)
+    {
+        this.name = name;
+        this.description = description;
+    }
+
+    public string Name { get { return name; } }
+    public string ShortDescription { get { return name + " (" + FirstID() + ")"; } }
+    public virtual string FullDescription { get { return description; } }
+}
+
+public class Item : GameObject
+{
+    public Item(string[] idents, string name, string desc) : base(idents, name, desc) { }
+}
+
+public class Inventory
+{
+    private List<Item> _items = new List<Item>();
+    public void Put(Item itm) { _items.Add(itm); }
+    public bool HasItem(string id)
+    {
+        foreach (Item i in _items) { if (i.AreYou(id)) { return true; } }
+        return false;
+    }
+    public Item Fetch(string id)
+    {
+        foreach (Item i in _items) { if (i.AreYou(id)) { return i; } }
+        return null;
+    }
+}
+
+public interface IHaveInventory
+{
+    GameObject Locate(string id);
+    string Name { get; }
+    int IdentifierCount { get; }
+}
+
+public class Bag : Item, IHaveInventory
+{
+    private Inventory _inventory = new Inventory();
+    public Bag(string[] ids, string name, string desc) : base(ids, name, desc) { }
+    public Inventory Inventory { get { return _inventory; } }
+    public GameObject Locate(string id)
+    {
+        if (AreYou(id)) { return this; }
+        else if (_inventory.HasItem(id)) { return _inventory.Fetch(id); }
+        else { return null; }
+    }
+}
+
+public class Player : GameObject, IHaveInventory
+{
+    private Inventory _inventory = new Inventory();
+    public Player(string name, string desc)
+        : base(new string[] { "me", "inventory" }, name, desc) { }
+    public Inventory Inventory { get { return _inventory; } }
+    public GameObject Locate(string id)
+    {
+        if (AreYou(id)) { return this; }
+        return _inventory.Fetch(id);
+    }
+}
+
+public class __Check
+{
+    public static void Main()
+    {
+        List<IHaveInventory> containers = new List<IHaveInventory>();
+
+        Player amy = new Player("Amy", "an explorer");
+        amy.AddIdentifier("amy");
+
+        Bag small = new Bag(new string[] { "bag", "tool" }, "Tool Bag", "Tools.");
+
+        Bag big = new Bag(new string[] { "bag", "big", "sack", "holdall" }, "Big Bag", "Roomy.");
+
+        containers.Add(big);
+        containers.Add(amy);
+        containers.Add(small);
+
+        containers.Sort((a, b) => a.IdentifierCount.CompareTo(b.IdentifierCount));
+
+        foreach (IHaveInventory c in containers)
+        {
+            Console.WriteLine(c.Name + " " + c.IdentifierCount);
+        }
+    }
+}`,
+            hints: [
+              'The identifier list is private to this class, so the property belongs here rather than in `Player` or `Bag`.',
+              'It is read-only: a getter, no setter.',
+              '`public int IdentifierCount { get { return _identifiers.Count; } }` — and both subclasses now satisfy the interface without changing.',
+            ],
+            tool: 'tests',
+          },
+        },
+      ],
+    },
   ],
 };
 
-export const week9Interview: InterviewQuestion[] = [];
+/*
+ * The verification interview.
+ *
+ * Lab9.pdf: "In the lab, there will be a verification task and short interview
+ * to verify your understanding." These are the questions that walkthrough
+ * actually asks — the composite relationship, why the search is flat, and what
+ * the interface buys. Q3 is the one students most often fumble, because the
+ * honest answer is "the task sheet and the lecture disagree and I checked".
+ */
+export const week9Interview: InterviewQuestion[] = [
+  {
+    id: 'w9-q1',
+    question: 'A Bag is an Item. What does that one line buy you?',
+    lookingFor: [
+      'Any `Inventory` can store a bag without a single change, because an `Inventory` already holds `Item`s',
+      'So bags nest inside bags, at any depth, for free at the *storage* level',
+      'It is the composite pattern: the container is itself one of the things it contains',
+      'What it does **not** buy you is searching — `Fetch` still only checks direct contents',
+    ],
+    aboutStep: 'w9-91-brief',
+  },
+  {
+    id: 'w9-q2',
+    question: 'Walk me through Bag.Locate. Why does it return GameObject rather than Item?',
+    lookingFor: [
+      'Three questions in order: are you me, do I hold it directly, otherwise null',
+      'It can return `this` — and in Task 9.2 `Player.Locate` returns itself too',
+      'A `Player` is not an `Item`, so `Item` is too narrow a return type for a shared contract',
+      '`GameObject` is the nearest type covering both, which is what makes `IHaveInventory` possible',
+    ],
+    aboutStep: 'w9-91-flat',
+  },
+  {
+    id: 'w9-q3',
+    question:
+      'Put a stew in bag b2, put b2 in bag b1. Can b1 locate the stew? Should it?',
+    lookingFor: [
+      'No — and that is the specified behaviour, not a bug',
+      'The task sheet’s own "Test Bag in Bag" requires `b1.Locate("stew")` to be null',
+      'A bag you hold is not a bag you have opened; the player descends one container at a time',
+      'The privileged-item test makes it a security property: nesting must not leak access',
+      'Knowing the lecture treats the same search as a bug, and that the sheet is what is graded',
+    ],
+    aboutStep: 'w9-91-flat',
+  },
+  {
+    id: 'w9-q4',
+    question: 'Why an interface here, rather than a common base class?',
+    lookingFor: [
+      '"Can contain items" is a **capability**, not an ancestry',
+      '`Player` extends `GameObject` and `Bag` extends `Item` — both base slots are already taken',
+      'C# allows one base class but any number of interfaces',
+      'The classes are unrelated and should stay that way; only the contract is shared',
+    ],
+    aboutStep: 'w9-92-why',
+  },
+  {
+    id: 'w9-q5',
+    question: 'How much did Player and Bag have to change to implement IHaveInventory?',
+    lookingFor: [
+      'Nothing but the header — both already had `Locate` and `Name` with the right signatures',
+      'The interface *records* a contract they were already keeping',
+      'What it adds is enforcement: rename either `Locate` now and the class stops compiling',
+      'Bonus: the base class comes first in the header, then the interfaces',
+    ],
+    aboutStep: 'w9-92-implement',
+  },
+  {
+    id: 'w9-q6',
+    question:
+      'Why is Inventory not on the interface, when both classes have one? And what does leaving it off cost you?',
+    lookingFor: [
+      'Keep an interface as small as the clients actually need — here, `Locate` and `Name`',
+      'Exposing `Inventory` would couple every caller to how containment is implemented',
+      'The cost: code holding an `IHaveInventory` must cast back to reach the inventory',
+      'That cast is the sheet’s own hint, and a chain of `is` checks is the smell to watch for',
+    ],
+    aboutStep: 'w9-92-polymorphism',
+  },
+  {
+    id: 'w9-q7',
+    question:
+      'You added IdentifierCount to the interface. Which class did you implement it in, and why there?',
+    lookingFor: [
+      '`IdentifiableObject` — it is the class that owns `_identifiers`',
+      'Both `Player` and `Bag` then inherit it and satisfy the interface without writing anything',
+      'Information expert: the responsibility goes to whoever holds the data',
+      'Putting it in both subclasses instead would duplicate logic and reach for data it does not own',
+    ],
+    aboutStep: 'w9-92-verify',
+  },
+];
