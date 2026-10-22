@@ -27,10 +27,14 @@
  *    `virtual` on `GameObject` so every future subclass inherits save support.
  * 3. **Lecture 8's `Bag` is Week 9's lab, taught here.** The lecture live-codes
  *    the composite pattern and `IHaveInventory` in full, including the three
- *    unit tests and the deliberate failure of the nested-bag search. There is
- *    no Lab 9 sheet in the resources folder, so this is built from the lecture
- *    alone, and the recursive fix the lecture leaves as an exercise is built
- *    as one here.
+ *    unit tests and the deliberate failure of the nested-bag search.
+ *    **Updated 2026-10-22:** `OOP Lab9.pdf` has since been read, and it
+ *    contradicts the lecture on one point — its own "Test Bag in Bag" requires
+ *    that `b1` **can not** locate items inside `b2`, so the *flat* search is
+ *    the graded answer. `w8-comp-fix` now teaches flat as correct and keeps
+ *    the recursive version as a clearly-labelled extension; `week9.ts` walks
+ *    the sheet itself. Do not "fix" this back without re-reading Lab9.pdf
+ *    page 3.
  * 4. **The nested-bag test is *supposed* to fail.** `Inventory.HasItem` and
  *    `Fetch` only look at the identifiers of their direct contents, so an
  *    apple inside a food bag inside a tool bag cannot be found from the tool
@@ -1804,7 +1808,7 @@ public class Program
               t: 'callout',
               tone: 'note',
               title: 'This is next week\'s lab, taught this week',
-              md: 'The Week 8 lecture live-codes all of this. There is no task sheet for it yet, so nothing here is submitted — but it is the direct continuation of what you just built, and the design questions it raises are the ones the lecture theory was preparing you for.',
+              md: 'The Week 8 lecture live-codes all of this, a week before you are asked to submit it. It is **Lab 9** — Tasks 9.1 (`Bag`) and 9.2 (`IHaveInventory`) — and Week 9 in this app walks the task sheet itself, including the one place where the sheet and the lecture disagree. Build it here to understand it; submit it there.',
             },
             {
               t: 'text',
@@ -2042,29 +2046,41 @@ public class Program
         },
         {
           id: 'w8-comp-fix',
-          title: 'Searching all the way down',
+          title: 'Searching all the way down — and why the lab does not',
           blocks: [
             {
-              t: 'text',
-              md: `The fix is the one the lecture describes: when walking the items, ask of each one *"is this itself a \`Bag\`?"* — and if it is, search inside it rather than treating it as opaque.
+              t: 'callout',
+              tone: 'warn',
+              title: 'Read this before you write the code',
+              md: `The Lab 9 task sheet **wants the flat version**. Its own unit test says so in as many words:
 
-That is recursion. \`Bag.Locate\` calls \`Inventory\` search, which calls \`Bag.Locate\` on any bag it finds, which calls \`Inventory\` search again, for as many levels as there are.`,
+> *Test Bag in Bag — ... Test that b1 **can not** locate items in b2.*
+
+So the shallow search you just watched fail is not a bug to the lab. It is the specified behaviour, and \`BagLocate\` returning \`null\` for something nested is what gets the mark.
+
+That is worth sitting with for a second, because the lecture presents the same failure as a problem to fix. Both are right, about different things — and knowing which one you are being graded against is the actual skill.`,
             },
             {
               t: 'compare',
-              title: 'The one question that changes everything',
+              title: 'Two answers to one question, and when each is correct',
               left: {
-                title: 'Flat — items are opaque',
-                tone: 'bad',
-                code: `foreach (Item i in _items)
+                title: 'Flat — what Lab 9.1 asks for',
+                tone: 'good',
+                code: `public GameObject Locate(string id)
 {
-    if (i.AreYou(id)) { return i; }
-}
-return null;`,
+    if (AreYou(id)) { return this; }
+
+    if (_inventory.HasItem(id))
+    {
+        return _inventory.Fetch(id);
+    }
+
+    return null;
+}`,
               },
               right: {
-                title: 'Deep — bags get searched',
-                tone: 'good',
+                title: 'Deep — the lecture’s exercise',
+                tone: 'neutral',
                 code: `foreach (Item i in _items)
 {
     if (i.AreYou(id)) { return i; }
@@ -2079,6 +2095,14 @@ return null;`,
               },
             },
             {
+              t: 'text',
+              md: `**Why the lab is content with flat.** A bag you are holding is not a bag you have opened. \`look at apple in lunchbox\` should make you name the lunchbox — the player is meant to do the descending, one container at a time, through the \`look\` command you build in Week 10. Searching the whole tree on every lookup would also mean a *privileged* item buried two bags down could be found by anything holding the outer bag, which Lab 9's last test explicitly forbids.
+
+**Why the lecture reaches for deep anyway.** Composite's selling point is that a client treats one object and a whole tree identically. The moment you want \`Locate\` to mean "find this anywhere under me", recursion is the only way, and it is the shape you would need for a file-system search or a nested-category lookup.
+
+The exercise below is the **deep** version, kept because it is a genuinely good piece of recursion practice and because the final exam asks about composite depth. It is **not** what you submit for Lab 9.1.`,
+            },
+            {
               t: 'callout',
               tone: 'trap',
               title: 'Check the item itself before recursing into it',
@@ -2087,7 +2111,7 @@ return null;`,
           ],
           exercise: {
             prompt:
-              'Add DeepFetch to Inventory: return the matching item, looking inside any item that is itself a Bag.',
+              'Extension, not the graded task: add DeepFetch to Inventory, returning the matching item from anywhere under it — looking inside any item that is itself a Bag. Lab 9.1 submits the flat Locate above; this is the recursion the lecture leaves as an exercise.',
             seed: `public class Inventory
 {
     private List<Item> _items = new List<Item>();
