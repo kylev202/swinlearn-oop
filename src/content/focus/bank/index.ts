@@ -23,9 +23,28 @@ import { WEEK2 } from './week2';
 import { WEEK3 } from './week3';
 import { WEEK4 } from './week4';
 import { WEEK5 } from './week5';
+import { WEEK6 } from './week6';
+import { WEEK7 } from './week7';
+import { WEEK8 } from './week8';
+import { WEEK9 } from './week9';
+import { WEEK10 } from './week10';
+import { WEEK11 } from './week11';
 import { CONCEPT_BY_ID } from '../concepts';
+import { EXAM_BY_ID, type ExamId } from '../exams';
 
-export const BANK: FocusQuestion[] = [...WEEK1, ...WEEK2, ...WEEK3, ...WEEK4, ...WEEK5];
+export const BANK: FocusQuestion[] = [
+  ...WEEK1,
+  ...WEEK2,
+  ...WEEK3,
+  ...WEEK4,
+  ...WEEK5,
+  ...WEEK6,
+  ...WEEK7,
+  ...WEEK8,
+  ...WEEK9,
+  ...WEEK10,
+  ...WEEK11,
+];
 
 export const QUESTION_BY_ID: Record<string, FocusQuestion> = Object.fromEntries(
   BANK.map((q) => [q.id, q]),
@@ -97,22 +116,38 @@ export function conceptCountOfWeek(week: number): number {
 
 // ----------------------------------------------------------- mock paper
 
-/** The real paper: 10 questions, Weeks 1-5, 20 minutes. */
-export const MOCK_LENGTH = 10;
-export const MOCK_MINUTES = 20;
+/**
+ * The midsemester paper: 10 questions, Weeks 1-5, 20 minutes.
+ *
+ * Kept as named constants because a lot of UI was written against them when
+ * the midsem was the only exam. Both now come from `exams.ts`, which is where
+ * a second paper's shape lives — read `lengthOf`/`minutesOf` in new code.
+ */
+export const MOCK_LENGTH = EXAM_BY_ID.midsem.length;
+export const MOCK_MINUTES = EXAM_BY_ID.midsem.minutes;
+
+/** How many questions paper for `exam` holds. */
+export function lengthOf(exam: ExamId): number {
+  return EXAM_BY_ID[exam].length;
+}
+
+/** How long a paper for `exam` allows, in minutes. */
+export function minutesOf(exam: ExamId): number {
+  return EXAM_BY_ID[exam].minutes;
+}
 
 /**
- * How many of the ten come from each week.
+ * At least this many questions harder than a revision-quiz question.
  *
- * Two per week is the honest reading of "Week 1 to Week 5 content", and it is
- * what the seven-row mock-test walkthrough in Lecture 5 roughly works out to.
- * Weeks 1 and 4 get the extra weight in practice simply because they own the
- * most concepts, which the stretch rule below leaves room for.
+ * The lecturer's estimate for the midsem was 2-3 of its ten. The final is
+ * twice the length, so it scales: a fifth of the paper, which is four of
+ * twenty. Lecture 11 also warns that HD/D rates are historically *lower* on
+ * the final than the midterm, so erring toward the harder draw is the honest
+ * choice — a practice paper that flatters you is worse than no practice.
  */
-const BLUEPRINT: Record<number, number> = { 1: 2, 2: 2, 3: 2, 4: 2, 5: 2 };
-
-/** At least this many questions harder than a revision-quiz question. */
-const MIN_STRETCH = 2;
+function minStretch(exam: ExamId): number {
+  return Math.max(2, Math.round(EXAM_BY_ID[exam].length / 5));
+}
 
 /**
  * Assemble mock paper `n` (1-based).
@@ -122,12 +157,19 @@ const MIN_STRETCH = 2;
  * roughly twenty questions a week the bank runs out eventually, and repeating
  * a question a student has already seen once beats handing them a short paper.
  */
-export function buildMockPaper(n: number, avoid: readonly string[] = []): FocusQuestion[] {
-  const next = rng(9001 + n * 7919);
+export function buildMockPaper(
+  n: number,
+  avoid: readonly string[] = [],
+  exam: ExamId = 'midsem',
+): FocusQuestion[] {
+  // Papers of the two exams must not collide: without the offset, midsem
+  // paper 1 and final paper 1 would share a seed and draw the same Weeks 1-5
+  // questions in the same order for the weeks they have in common.
+  const next = rng(9001 + n * 7919 + (exam === 'final' ? 104729 : 0));
   const seen = new Set(avoid);
   const picked: FocusQuestion[] = [];
 
-  for (const [week, count] of Object.entries(BLUEPRINT)) {
+  for (const [week, count] of Object.entries(EXAM_BY_ID[exam].blueprint)) {
     const pool = shuffled(questionsOfWeek(Number(week)), next);
     const fresh = pool.filter((q) => !seen.has(q.id));
     const rest = pool.filter((q) => seen.has(q.id));
@@ -135,14 +177,17 @@ export function buildMockPaper(n: number, avoid: readonly string[] = []): FocusQ
   }
 
   // Trade the easiest picks for stretch questions until the paper has enough
-  // of them — the real one is not ten softballs.
-  const stretchShort = MIN_STRETCH - picked.filter((q) => q.stretch).length;
+  // of them — the real one is not all softballs.
+  const stretchShort = minStretch(exam) - picked.filter((q) => q.stretch).length;
   if (stretchShort > 0) {
     const chosen = new Set(picked.map((q) => q.id));
     // Respect `avoid` here too, or the swap quietly reintroduces a question
     // the week-by-week draw had just taken care to skip.
+    // Only from weeks this exam covers — a midsem paper must never reach
+    // into Week 9 for a harder question.
+    const scope = new Set(EXAM_BY_ID[exam].weeks);
     const pool = shuffled(
-      BANK.filter((q) => q.stretch && !chosen.has(q.id)),
+      BANK.filter((q) => q.stretch && !chosen.has(q.id) && scope.has(weekOf(q))),
       next,
     );
     const spares = [...pool.filter((q) => !seen.has(q.id)), ...pool.filter((q) => seen.has(q.id))]
@@ -155,7 +200,7 @@ export function buildMockPaper(n: number, avoid: readonly string[] = []): FocusQ
     }
   }
 
-  return shuffled(picked, next).slice(0, MOCK_LENGTH);
+  return shuffled(picked, next).slice(0, lengthOf(exam));
 }
 
-export { WEEK1, WEEK2, WEEK3, WEEK4, WEEK5 };
+export { WEEK1, WEEK2, WEEK3, WEEK4, WEEK5, WEEK6, WEEK7, WEEK8, WEEK9, WEEK10, WEEK11 };

@@ -34,12 +34,21 @@ const el = (selector: string) => document.querySelector(selector) as HTMLElement
 const rail = () => within(el('.focus-rail'));
 const page = () => within(el('.focus-scroll'));
 
-async function enterFocus() {
+/**
+ * Onboard and open one exam's revision.
+ *
+ * The exam has to be named now that there are two of them and both cards say
+ * "Start the … revision". Everything below this point is about the
+ * midsemester material, which is what these tests were written against.
+ */
+async function enterFocus(exam: 'midsem' | 'final' = 'midsem') {
   render(<App />);
   fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Amy' } });
   fireEvent.change(screen.getByLabelText('Student ID'), { target: { value: '104321987' } });
   fireEvent.click(screen.getByRole('button', { name: /start learning/i }));
-  fireEvent.click(await screen.findByRole('button', { name: /Start preparing/i }));
+  fireEvent.click(
+    await screen.findByRole('button', { name: new RegExp(`Start the ${exam} revision`, 'i') }),
+  );
   return await screen.findByText('Do this next');
 }
 
@@ -92,8 +101,8 @@ async function passDrill(count: number) {
 describe('concept focus', () => {
   it('opens on the readiness board with the exam conditions stated', async () => {
     await enterFocus();
-    expect(page().getByText('10 multiple-choice questions')).toBeInTheDocument();
-    expect(page().getByText('Weeks 1–5 only')).toBeInTheDocument();
+    expect(page().getByText('10 questions')).toBeInTheDocument();
+    expect(page().getByText('Weeks 1–5')).toBeInTheDocument();
     expect(page().getByText(/0% ready/)).toBeInTheDocument();
   });
 
@@ -241,11 +250,16 @@ describe('concept focus', () => {
 /*
  * The two exams.
  *
- * Concept Focus now answers to a paper rather than to itself, and the
- * interesting cases are the ones where the answer is "nothing yet": the Final
- * tab has to be reachable, has to say what is missing, and must not report a
- * readiness percentage against a bank that does not exist — a 0% dial would
- * read as "you are unprepared" when the truth is "nothing has been written".
+ * Concept Focus answers to a paper rather than to itself, and both papers now
+ * have material behind them. These tests used to be about the opposite case —
+ * the Final tab when nothing had been written for it — and that state no
+ * longer exists, so what they check now is that the two tabs are genuinely
+ * *different*: different weeks in the rail, a different paper length and
+ * duration, and a board that describes the paper it belongs to.
+ *
+ * The thing most likely to break here is a view that quietly keeps showing
+ * midsemester material after the tab is switched, which is what every
+ * assertion about Weeks 9-11 below is guarding.
  */
 describe('the two exams', () => {
   async function onboard() {
@@ -256,13 +270,14 @@ describe('the two exams', () => {
     return await screen.findByText('Revision');
   }
 
-  it('offers both papers from the portal, and marks the unbuilt one', async () => {
+  it('offers both papers from the portal, with the final\'s real details', async () => {
     await onboard();
     expect(screen.getByRole('button', { name: /Midsemester test/ })).toBeInTheDocument();
-    const final = screen.getByRole('button', { name: /Final exam/ });
+    const final = screen.getByRole('button', { name: /Final-term test/ });
     expect(final).toBeInTheDocument();
-    expect(final).toHaveTextContent(/Date not announced yet/);
-    expect(final).toHaveTextContent(/See what is missing/);
+    // The mockup paper's own header, not a placeholder.
+    expect(final).toHaveTextContent(/Week 12/);
+    expect(final).not.toHaveTextContent(/not announced/i);
   });
 
   it('opens a week\'s revision notes straight from the portal', async () => {
@@ -273,34 +288,52 @@ describe('the two exams', () => {
     );
   });
 
-  it('sends the final to its own page rather than to an empty board', async () => {
+  it('sends the final to a real board, describing the final\'s own paper', async () => {
     await onboard();
-    fireEvent.click(screen.getByRole('button', { name: /Final exam/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Final-term test/ }));
 
-    expect(await page().findByText(/Nothing built yet/)).toBeInTheDocument();
-    expect(page().getByText(/What is not here/)).toBeInTheDocument();
-    // No readiness dial, because there is nothing to be ready for.
-    expect(el('.focus-rail .side-progress')).toBeNull();
-    // The gap is named, not implied.
-    for (const week of [6, 7, 8]) {
-      expect(page().getByText(`Week ${week}`, { selector: 'strong' })).toBeInTheDocument();
+    // Scoped to the board's own fact strip — the rail also advertises the
+    // paper's length, so an unscoped text match finds two of everything.
+    await page().findByText(/Everything the paper can ask/);
+    const facts = within(el('.board-facts')!);
+    expect(facts.getByText('20 questions')).toBeInTheDocument();
+    expect(facts.getByText('40 minutes')).toBeInTheDocument();
+    expect(facts.getByText('Weeks 1–11')).toBeInTheDocument();
+    // A readiness dial, because there is now something to be ready for.
+    expect(el('.focus-rail .side-progress')).not.toBeNull();
+  });
+
+  it('lists all eleven weeks in the final\'s rail, not just the midsem five', async () => {
+    await onboard();
+    fireEvent.click(screen.getByRole('button', { name: /Final-term test/ }));
+    await page().findByText(/Everything the paper can ask/);
+
+    const rail = el('.focus-rail')!;
+    // Weeks 9-11 exist only for the final, so they are the real test that the
+    // rail is reading the current exam rather than FOCUS_WEEKS.
+    for (const week of [1, 6, 9, 10, 11]) {
+      expect(within(rail).getAllByText(`Week ${week}`).length, `week ${week}`).toBeGreaterThan(0);
     }
   });
 
-  it('switches back to the midsemester board from the final tab', async () => {
+  it('switches back to the midsemester board, and drops the extra weeks again', async () => {
     await onboard();
-    fireEvent.click(screen.getByRole('button', { name: /Final exam/ }));
-    fireEvent.click(await page().findByRole('button', { name: /Go to the midsemester revision/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Final-term test/ }));
+    await page().findByText(/Everything the paper can ask/);
+
+    fireEvent.click(within(el('.focus-rail')!).getByRole('tab', { name: /Midsem/ }));
     expect(await page().findByText('Do this next')).toBeInTheDocument();
     expect(el('.focus-rail .exam-tab.active')).toHaveTextContent('Midsem');
+    expect(within(el('.focus-rail')!).queryByText('Week 9')).toBeNull();
   });
 
-  it('still reaches the Weeks 1-5 notes from inside the final tab', async () => {
+  it('reaches the new Weeks 6-11 notes from the final tab', async () => {
     await onboard();
-    fireEvent.click(screen.getByRole('button', { name: /Final exam/ }));
-    fireEvent.click(await page().findByRole('button', { name: /Revise the Week 4 notes/ }));
-    expect(await page().findByRole('heading', { level: 1 })).toHaveTextContent(
-      'Inheritance and polymorphism',
-    );
+    fireEvent.click(screen.getByRole('button', { name: /Final-term test/ }));
+    await page().findByText(/Everything the paper can ask/);
+
+    const rail = el('.focus-rail')!;
+    fireEvent.click(within(rail).getAllByText('Week 10')[0].closest('button')!);
+    expect(await page().findByRole('heading', { level: 1 })).toHaveTextContent('Design patterns');
   });
 });

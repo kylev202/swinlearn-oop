@@ -13,7 +13,7 @@
 
 import { useMemo, useState } from 'react';
 
-import { CONCEPT_BY_ID, FOCUS_WEEKS } from '@/content/focus/concepts';
+import { CONCEPT_BY_ID } from '@/content/focus/concepts';
 import { EXAMS, EXAM_BY_ID, type ExamId } from '@/content/focus/exams';
 import { conceptCountOfWeek, questionsOfConcept, questionsOfWeek, weeklyQuiz } from '@/content/focus/bank';
 import { QUESTION_BY_ID } from '@/content/focus/bank';
@@ -33,7 +33,6 @@ import {
 } from '@/state/focus';
 
 import { Board } from './Board';
-import { FinalView } from './FinalView';
 import { Drill, type DrillSpec } from './Drill';
 import { MockReview, MockTest } from './MockTest';
 import { NotesView } from './NotesView';
@@ -56,8 +55,6 @@ import { NotesView } from './NotesView';
  */
 type View =
   | { name: 'board' }
-  /** The landing page of an exam that has nothing behind it yet. */
-  | { name: 'unbuilt' }
   | { name: 'notes'; week: number; concept?: string }
   | { name: 'drill'; week: number; questionIds: string[]; salt: number }
   | { name: 'fix'; conceptId: string; questionIds: string[]; salt: number }
@@ -93,16 +90,15 @@ export function FocusMode({
   onCloseNav: () => void;
 }) {
   /*
-   * An exam with nothing built lands on its own page rather than on a board
-   * reporting 0% against an empty bank, which would read as a broken feature
-   * rather than as an absent one.
+   * Both exams now have a bank, notes and papers behind them, so both land on
+   * the board. There used to be a third landing — an "unbuilt" page for an
+   * exam with nothing to study — which existed for the whole period the final
+   * was announced but unwritten. It is gone along with the state it described.
    */
   const landing = (): View =>
-    EXAM_BY_ID[exam].ready
-      ? initialNotesWeek !== undefined
-        ? { name: 'notes', week: initialNotesWeek }
-        : { name: 'board' }
-      : { name: 'unbuilt' };
+    initialNotesWeek !== undefined
+      ? { name: 'notes', week: initialNotesWeek }
+      : { name: 'board' };
 
   const [view, setView] = useState<View>(landing);
 
@@ -199,8 +195,8 @@ export function FocusMode({
   }, [view, focus]);
 
   const current = EXAM_BY_ID[exam];
-  const fixCount = openFixes(focus).length;
-  const readiness = Math.round(overallReadiness(focus) * 100);
+  const fixCount = openFixes(focus, exam).length;
+  const readiness = Math.round(overallReadiness(focus, exam) * 100);
 
   return (
     <div className="focus">
@@ -260,42 +256,6 @@ export function FocusMode({
           )}
         </div>
 
-        {!current.ready ? (
-          <nav aria-label="Final exam">
-            <div className="lesson-group">
-              <button
-                className={`lesson-link${view.name === 'unbuilt' ? ' active' : ''}`}
-                onClick={board}
-              >
-                <span className="lesson-title">{current.name}</span>
-                <span className="lesson-meta">
-                  <span>{current.when}</span>
-                </span>
-              </button>
-            </div>
-
-            <div className="side-heading">Carried over from the midsem</div>
-            {EXAM_BY_ID.midsem.weeks.map((week) => (
-              <div className="lesson-group" key={week}>
-                <button
-                  className={`lesson-link${view.name === 'notes' && view.week === week ? ' active' : ''}`}
-                  onClick={() => go({ name: 'notes', week })}
-                >
-                  <span className="lesson-title">Week {week}</span>
-                  <span className="lesson-meta">
-                    <span>{notesOfWeek(week)?.title}</span>
-                  </span>
-                </button>
-              </div>
-            ))}
-
-            <div className="side-foot">
-              <strong>Not written yet</strong>
-              Weeks {current.missing.join(', ')} have lessons but no revision notes, and no date or
-              format has been announced for this paper.
-            </div>
-          </nav>
-        ) : (
         <nav aria-label="Concept focus">
           <div className="lesson-group">
             <button
@@ -316,7 +276,7 @@ export function FocusMode({
           </div>
 
           <div className="side-heading">Revision notes</div>
-          {FOCUS_WEEKS.map((week) => (
+          {current.weeks.map((week) => (
             <div className="lesson-group" key={week}>
               <button
                 className={`lesson-link${view.name === 'notes' && view.week === week ? ' active' : ''}`}
@@ -331,7 +291,7 @@ export function FocusMode({
           ))}
 
           <div className="side-heading">Test yourself</div>
-          {FOCUS_WEEKS.map((week) => {
+          {current.weeks.map((week) => {
             const pct = Math.round(weekReadiness(focus, week) * 100);
             return (
               <div className="lesson-group" key={week}>
@@ -366,27 +326,20 @@ export function FocusMode({
             >
               <span className="lesson-title">Mock paper {focus.nextPaper}</span>
               <span className="lesson-meta">
-                <span>10 questions · 20 min</span>
+                <span>{current.length} questions · {current.minutes} min</span>
                 {focus.mocks.length > 0 && <span>· {focus.mocks.length} sat</span>}
               </span>
             </button>
           </div>
         </nav>
-        )}
       </aside>
       )}
 
       <div className="focus-scroll">
-        {view.name === 'unbuilt' && (
-          <FinalView
-            onOpenNotes={(week) => go({ name: 'notes', week })}
-            onSwitchToMidsem={() => onExamChange('midsem')}
-          />
-        )}
-
         {view.name === 'board' && (
           <Board
             focus={focus}
+            exam={exam}
             onOpenNotes={(week, concept) => go({ name: 'notes', week, concept })}
             onDrillWeek={drillWeek}
             onFix={drillConcept}
@@ -437,8 +390,12 @@ export function FocusMode({
 
         {view.name === 'mock' && (
           <MockTest
-            key={view.paper}
+            // Keyed on the exam too: switching tabs with a paper open must
+            // start a fresh sitting rather than re-using the old one's
+            // answers against a differently-sized paper.
+            key={`${exam}-${view.paper}`}
             paper={view.paper}
+            exam={exam}
             avoid={seenOnMocks(focus)}
             onSubmit={(attempt) => {
               onUpdate((f) => recordMock(f, attempt));

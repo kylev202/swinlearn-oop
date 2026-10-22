@@ -2849,13 +2849,6 @@ button.status-bad:hover { background: var(--bad-soft); color: var(--bad); }
   opacity: 0.8;
 }
 
-/* A week row for a week that has nothing in it. Same row, less ink. */
-.gap-row { opacity: 0.62; }
-.gap-row .week-row-num { color: var(--text-faint); }
-.gap-row .week-row-title strong { font-weight: 500; }
-
-.board-foot-actions { margin-top: 14px; }
-
 /* --- the board */
 
 /* The same box as `.home` — both are the landing page of a mode. */

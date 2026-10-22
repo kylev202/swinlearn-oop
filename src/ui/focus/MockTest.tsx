@@ -13,14 +13,14 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { MOCK_MINUTES, QUESTION_BY_ID, buildMockPaper, weekOf } from '@/content/focus/bank';
+import { QUESTION_BY_ID, buildMockPaper, weekOf } from '@/content/focus/bank';
+import { EXAM_BY_ID, type ExamId } from '@/content/focus/exams';
 import { CONCEPT_BY_ID } from '@/content/focus/concepts';
 import { displayIndex, paperSeed, shuffleChoices } from '@/content/shuffle';
 import { scoreMock, type MockAttempt } from '@/state/focus';
 
 import { QuestionCard } from './QuestionCard';
 
-const SECONDS = MOCK_MINUTES * 60;
 
 function clock(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
@@ -32,15 +32,20 @@ function clock(seconds: number): string {
 export function MockTest({
   paper,
   avoid,
+  exam = 'midsem',
   onSubmit,
   onLeave,
 }: {
   paper: number;
   /** Question ids already met on earlier papers. */
   avoid: string[];
+  /** Which exam's paper this is — decides length, time and week spread. */
+  exam?: ExamId;
   onSubmit: (attempt: MockAttempt) => void;
   onLeave: () => void;
 }) {
+  const spec = EXAM_BY_ID[exam];
+  const seconds = spec.minutes * 60;
   /*
    * Options are shuffled per paper rather than per sitting, because the answer
    * sheet outlives the sitting: it is stored and re-rendered in the review, and
@@ -49,13 +54,13 @@ export function MockTest({
    * different order, which is what a re-sit needs.
    */
   const questions = useMemo(
-    () => buildMockPaper(paper, avoid).map((q) => shuffleChoices(q, paperSeed(q.id, paper))),
-    [paper, avoid],
+    () => buildMockPaper(paper, avoid, exam).map((q) => shuffleChoices(q, paperSeed(q.id, paper))),
+    [paper, avoid, exam],
   );
   const [started, setStarted] = useState<number | null>(null);
   const [answers, setAnswers] = useState<(number | null)[]>(() => questions.map(() => null));
   const [at, setAt] = useState(0);
-  const [left, setLeft] = useState(SECONDS);
+  const [left, setLeft] = useState(seconds);
 
   // The clock has to read the answers without being re-created every time one
   // changes, so the latest set lives in a ref alongside the state.
@@ -79,7 +84,7 @@ export function MockTest({
       answers: latest.current.map((a, i) => (a === null ? null : questions[i].order[a])),
       startedAt: started,
       submittedAt: Date.now(),
-      seconds: SECONDS,
+      seconds,
     });
   };
   const submitRef = useRef(submit);
@@ -88,7 +93,7 @@ export function MockTest({
   useEffect(() => {
     if (started === null) return;
     const tick = setInterval(() => {
-      const remaining = SECONDS - Math.floor((Date.now() - started) / 1000);
+      const remaining = seconds - Math.floor((Date.now() - started) / 1000);
       setLeft(remaining);
       if (remaining <= 0) {
         clearInterval(tick);
@@ -107,11 +112,13 @@ export function MockTest({
           <tbody>
             <tr>
               <th>Questions</th>
-              <td>10 multiple choice, Weeks 1–5</td>
+              <td>
+                {spec.length} questions, {spec.scope.toLowerCase()}
+              </td>
             </tr>
             <tr>
               <th>Time</th>
-              <td>{MOCK_MINUTES} minutes, counting down and not pausing</td>
+              <td>{spec.minutes} minutes, counting down and not pausing</td>
             </tr>
             <tr>
               <th>Feedback</th>
@@ -125,7 +132,7 @@ export function MockTest({
         </table>
         <p className="mock-tip">
           The lecturer&rsquo;s advice: answer what you are sure of first, mark the rest, come back.
-          Most students finish inside 15 of the 20 minutes.
+          Most students finish with time to spare in the {spec.minutes} minutes.
         </p>
         <div className="mock-brief-actions">
           <button className="primary" onClick={() => setStarted(Date.now())}>

@@ -10,7 +10,7 @@ import type { Week } from '@/content/types';
 import { completionOf, whereSaved, type AppState } from '@/state/progress';
 import { openFixes, overallReadiness } from '@/state/focus';
 import { isDesktop } from '@/state/desktop';
-import { EXAMS, type ExamId } from '@/content/focus/exams';
+import { EXAMS, EXAM_BY_ID, type ExamId } from '@/content/focus/exams';
 import { notesOfWeek } from '@/content/focus/notes';
 
 /** Weeks not yet built into the app, previewed as locked cards below the available ones. */
@@ -29,8 +29,8 @@ export function Home({
   onFocus: (exam?: ExamId, notesWeek?: number) => void;
 }) {
   const resume = findResume(weeks, state);
-  const readiness = Math.round(overallReadiness(state.focus) * 100);
-  const fixes = openFixes(state.focus).length;
+  // Readiness and the fix-up count are worked out per exam card below, since
+  // the two papers cover different weeks.
   // Readiness is deliberately 0 for someone who has answered only questions
   // they got wrong, so it cannot be the test for whether they have started.
   const started = Object.keys(state.focus.attempts).length > 0 || state.focus.mocks.length > 0;
@@ -86,7 +86,14 @@ export function Home({
       </div>
 
       <div className="exam-cards">
-        {EXAMS.map((exam) => (
+        {EXAMS.map((exam) => {
+          // Per exam, not global: the two papers cover different weeks, so a
+          // single readiness figure on both cards would be wrong on at least
+          // one of them.
+          const pct = Math.round(overallReadiness(state.focus, exam.id) * 100);
+          const toClear = openFixes(state.focus, exam.id).length;
+
+          return (
           <button
             key={exam.id}
             className={`exam-card${exam.ready ? '' : ' soon'}`}
@@ -99,11 +106,11 @@ export function Home({
             {exam.ready && started ? (
               <span className="exam-card-stats">
                 <span>
-                  <strong>{readiness}%</strong> ready
+                  <strong>{pct}%</strong> ready
                 </span>
-                {fixes > 0 && (
+                {toClear > 0 && (
                   <span className="exam-card-fixes">
-                    <strong>{fixes}</strong> to clear
+                    <strong>{toClear}</strong> to clear
                   </span>
                 )}
                 {state.focus.mocks.length > 0 && (
@@ -119,25 +126,33 @@ export function Home({
               </span>
             )}
 
+            {/* Named per exam, because two cards reading "Start preparing"
+                tell you nothing about which one you are about to open. */}
             <span className="exam-card-go">
-              {exam.ready ? (started ? 'Continue' : 'Start preparing') : 'See what is missing'}
+              {exam.ready
+                ? `${started ? 'Continue' : 'Start'} the ${exam.short.toLowerCase()} revision`
+                : 'See what is missing'}
               <span aria-hidden> &rarr;</span>
             </span>
           </button>
-        ))}
+          );
+        })}
       </div>
 
       <div className="note-strip">
         <span className="note-strip-label">Weekly concept notes</span>
         <div className="note-chips">
-          {EXAMS[0].weeks.map((week) => {
+          {/* Every week with notes. The final covers the lot, so its week
+              list is the one that shows all of them; a chip opens in the exam
+              that actually examines that week. */}
+          {EXAM_BY_ID.final.weeks.map((week) => {
             const notes = notesOfWeek(week);
             if (!notes) return null;
             return (
               <button
                 key={week}
                 className="note-chip"
-                onClick={() => onFocus('midsem', week)}
+                onClick={() => onFocus(week <= 5 ? 'midsem' : 'final', week)}
                 title={notes.gist}
               >
                 <span className="note-chip-num">W{week}</span>

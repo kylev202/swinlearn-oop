@@ -35,7 +35,7 @@ import { Onboarding } from './Onboarding';
 import { CommandPalette, type Command } from './CommandPalette';
 
 // Concept focus is a whole second app's worth of question bank and revision
-// notes for Weeks 1-5 — bigger than the lessons it sits next to — and a
+// notes for Weeks 1-11 — bigger than the lessons it sits next to — and a
 // student may spend an entire session in the lessons without opening it.
 // Lazy, the same way Workbench is in LessonPlayer.tsx, so that content never
 // loads until "Concept focus" is actually clicked.
@@ -253,16 +253,18 @@ export function App() {
       {
         id: 'focus-final',
         group: 'Go',
-        title: 'Concept focus — final exam',
-        subtitle: 'Not built yet; what exists and what is missing',
+        title: 'Concept focus — final-term test',
+        subtitle: 'Weeks 1-11 notes, quizzes, mistakes and mock papers',
         run: () => openFocus('final'),
       },
-      ...EXAM_BY_ID.midsem.weeks.map((week) => ({
+      // Every week with notes, not just the midsem's five. Weeks 6-11 are
+      // reachable only through the final, so that is the exam they open in.
+      ...EXAM_BY_ID.final.weeks.map((week) => ({
         id: `focus-notes:${week}`,
         group: 'Revision notes',
         title: `Week ${week} revision notes`,
         subtitle: 'Concept focus — read, then test yourself',
-        run: () => openFocus('midsem', week),
+        run: () => openFocus(week <= 5 ? 'midsem' : 'final', week),
       })),
       {
         id: 'sidebar',

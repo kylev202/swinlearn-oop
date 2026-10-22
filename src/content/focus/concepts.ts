@@ -1,12 +1,19 @@
 /**
- * The concept map for Weeks 1-5 — everything the midterm can ask about.
+ * The concept map for Weeks 1-11 — everything either exam can ask about.
  *
- * Derived by working backwards from what the assessment actually contains:
- * the five revision quizzes (Quiz 1-5, 82 questions between them), the
- * mock-test walkthrough in Lecture 5, and Lecture 4's own "possible
- * midterm-style questions" section. Anything taught in lecture but never
- * examined in any of those is not here — this is a list for a 20-minute
- * paper, not a syllabus.
+ * Derived by working backwards from what the assessments actually contain:
+ * the eleven revision quizzes, the mock-test walkthrough in Lecture 5, the
+ * released final-term mockup paper (`Final_Mockup Sample (2).pdf`) and
+ * Lecture 11's own walkthrough of it. Anything taught in lecture but never
+ * examined in any of those is not here — these are lists for a 20-minute and
+ * a 40-minute paper, not a syllabus.
+ *
+ * Two exams draw from this one map, and the split is by week:
+ *
+ *   Weeks 1-5   midsemester test, and still examinable on the final, which
+ *               takes its *code analysis* questions from the whole unit.
+ *   Weeks 6-11  final only. Lecture 11: "theoretical content from Weeks
+ *               6-11, but coding analysis questions from Week 1-11".
  *
  * `lessonSteps` point back into the main lesson content. They are the escape
  * hatch when a revision note is not enough, so they are only filled in where a
@@ -288,14 +295,357 @@ export const CONCEPTS: Concept[] = [
       'An unhandled exception propagates up the call stack looking for a matching catch; if none exists anywhere, the program crashes.',
     lessonSteps: ['w5-exc-propagate'],
   },
+
+  // ------------------------------------- week 6: responsibility-driven design
+  {
+    id: 'rdd-steps',
+    week: 6,
+    title: 'The three steps of RDD',
+    oneLiner:
+      'Step 1 identify roles, step 2 assign responsibilities to each role, step 3 work out how they collaborate. Roles come first, always.',
+    lessonSteps: ['w6-rdd-steps', 'w6-col-step3'],
+  },
+  {
+    id: 'rdd-role',
+    week: 6,
+    title: 'What a role is',
+    oneLiner:
+      'A role is a general responsibility or purpose an object may fulfil — a behavioural contract, not one concrete class and not an instance. Roles come from the problem domain, so a For Loop is never one.',
+    lessonSteps: ['w6-rdd-roles'],
+  },
+  {
+    id: 'crc-cards',
+    week: 6,
+    title: 'CRC cards',
+    oneLiner:
+      'Candidate role, Responsibility, Collaboration — index cards used early in RDD to brainstorm and iteratively refine roles by walking scenarios, long before any database or implementation detail.',
+    lessonSteps: ['w6-rdd-crc'],
+  },
+  {
+    id: 'knows-does',
+    week: 6,
+    title: 'Knows and does',
+    oneLiner:
+      'A responsibility is either something the role knows (an attribute) or something it does (a method). Assigning both to the role that owns the data is encapsulation of responsibilities.',
+    lessonSteps: ['w6-rdd-knows-does'],
+  },
+  {
+    id: 'info-expert',
+    week: 6,
+    title: 'Information expert',
+    oneLiner:
+      'The object that holds the data is the object responsible for acting on it — a Piece knows its own valid moves; the Library, not the User, runs the borrow transaction.',
+    lessonSteps: ['w6-col-expert', 'w6-col-library'],
+  },
+  {
+    id: 'cohesion',
+    week: 6,
+    title: 'Cohesion',
+    oneLiner:
+      'How strongly related one class’s own responsibilities are. High cohesion = "I know everything about one topic"; a class doing several unrelated jobs is low cohesion, a God class.',
+    lessonSteps: ['w6-col-cohesion'],
+  },
+  {
+    id: 'coupling',
+    week: 6,
+    title: 'Coupling',
+    oneLiner:
+      'How much classes depend on each other. Low (loose) coupling means depending on interfaces rather than other classes’ concrete internals — "I am a rock, I am an island".',
+    lessonSteps: ['w6-col-coupling'],
+  },
+  {
+    id: 'uml-relations',
+    week: 6,
+    title: 'The five UML relationships',
+    oneLiner:
+      'Dependency (dashed arrow, temporary use), association (solid line), aggregation (open diamond, parts outlive the whole), composition (filled diamond, parts die with it), inheritance (hollow triangle).',
+    lessonSteps: ['w6-uml-relations'],
+  },
+
+  // ---------------------------- week 7: common implementation issues
+  {
+    id: 'overloading',
+    week: 7,
+    title: 'Method overloading',
+    oneLiner:
+      'Same name, different parameter count, order or type. The signature excludes the return type and parameter names, so changing only one of those is a duplicate method, not an overload.',
+    lessonSteps: ['w7-contract-signature', 'w7-contract-names', 'w7-contract-return'],
+  },
+  {
+    id: 'scope',
+    week: 7,
+    title: 'Variable scope and shadowing',
+    oneLiner:
+      'Two variables of one name in the same scope is a compile error; a local legally shadows a class field of the same name, and inside that method the local wins.',
+    lessonSteps: ['w7-scope-duplicate', 'w7-scope-shadow'],
+  },
+  {
+    id: 'reading-errors',
+    week: 7,
+    title: 'Reading an error message',
+    oneLiner:
+      'Read the message and trace the stack backwards to the root cause. The reported line is where the symptom surfaced, not necessarily where the bug is.',
+    lessonSteps: ['w7-err-anatomy', 'w7-err-wrongline'],
+  },
+  {
+    id: 'common-exceptions',
+    week: 7,
+    title: 'Telling the common exceptions apart',
+    oneLiner:
+      'IndexOutOfRangeException = the index fell outside 0..Length-1. NullReferenceException = you dereferenced a reference holding null. They are different faults with different first checks.',
+    lessonSteps: ['w7-err-index', 'w7-err-null'],
+  },
+  {
+    id: 'api-docs',
+    week: 7,
+    title: 'Why read the documentation',
+    oneLiner:
+      'Documentation tells you what methods exist, what parameters they expect and how they are meant to be used — rather than guessing a signature and hitting an avoidable overload or scope error.',
+    lessonSteps: ['w7-err-docs'],
+  },
+
+  // ------------------------------------------ week 8: good OO design
+  {
+    id: 'lazy-class',
+    week: 8,
+    title: 'Lazy classes',
+    oneLiner:
+      'A good class minimises its own responsibilities and delegates whatever another object is better placed to do — the same instinct as information expert, seen from the other side.',
+    lessonSteps: ['w8-design-lazy'],
+  },
+  {
+    id: 'antisocial-class',
+    week: 8,
+    title: 'Antisocial classes',
+    oneLiner:
+      'A good class keeps communication with other objects minimal and well defined, to reduce dependencies. It is about lowering coupling, not about hiding data from its own methods.',
+    lessonSteps: ['w8-design-antisocial'],
+  },
+  {
+    id: 'conformity',
+    week: 8,
+    title: 'Conformity and Liskov substitution',
+    oneLiner:
+      'A subclass must honour its parent’s contract so it can stand in anywhere the parent is expected. Square inheriting Rectangle while allowing width ≠ height is the classic violation.',
+    lessonSteps: ['w8-design-conformist'],
+  },
+  {
+    id: 'mvc',
+    week: 8,
+    title: 'MVC',
+    oneLiner:
+      'Model holds the data, View presents it, Controller carries the logic between them — so a change to one has minimal impact on the others.',
+    lessonSteps: ['w8-design-mvc'],
+  },
+  {
+    id: 'design-smells',
+    week: 8,
+    title: 'Design smells',
+    oneLiner:
+      'Deep inheritance hierarchies make a top-level change ripple through every level below; long if/else chains branching on type should be replaced by polymorphism.',
+    lessonSteps: ['w8-design-smells'],
+  },
+  {
+    id: 'composite-idea',
+    week: 8,
+    title: 'The composite shape',
+    oneLiner:
+      'A container that is itself one of the things it contains — a Bag is an Item that holds Items — so a client treats one object and a whole tree of them identically.',
+    lessonSteps: ['w8-comp-idea', 'w8-comp-nested'],
+  },
+  {
+    id: 'class-size',
+    week: 8,
+    title: 'Class size',
+    oneLiner:
+      'A class that is too small is too problem-specific to reuse; one that is too large is too generic to reduce any complexity. Both fail, at opposite ends.',
+    lessonSteps: ['w8-design-smells'],
+  },
+
+  // ----------------------------------------------------- week 9: GRASP
+  {
+    id: 'grasp-what',
+    week: 9,
+    title: 'What GRASP is',
+    oneLiner:
+      'General Responsibility Assignment Software Patterns — nine guidelines for answering one question: given a responsibility, which class should own it?',
+  },
+  {
+    id: 'grasp-creator',
+    week: 9,
+    title: 'Creator',
+    oneLiner:
+      'A creates B if A contains or aggregates B, records B, closely uses B, or holds B’s initialising data — Deck creates Cards, BlackjackGame creates the Deck.',
+  },
+  {
+    id: 'grasp-controller',
+    week: 9,
+    title: 'Controller',
+    oneLiner:
+      'A system or UI event is handled by a controller — a class representing the system, a use case or a session — not by a model or database class handling raw user input directly.',
+  },
+  {
+    id: 'grasp-polymorphism',
+    week: 9,
+    title: 'Polymorphism (GRASP)',
+    oneLiner:
+      'When behaviour varies by type, put it in polymorphic methods on the types themselves instead of an if/switch that tests the type and branches.',
+  },
+  {
+    id: 'pure-fabrication',
+    week: 9,
+    title: 'Pure fabrication',
+    oneLiner:
+      'Invent a class with no real-world meaning to hold a responsibility that would wreck a domain class’s cohesion — a Persistence class saves the Deck, because no Card wants to save itself.',
+  },
+  {
+    id: 'protected-variations',
+    week: 9,
+    title: 'Protected variations',
+    oneLiner:
+      'Wrap the part of the design likeliest to change behind a stable interface, so the rest of the system depends on the abstraction and is shielded when the variation changes.',
+  },
+  {
+    id: 'indirection',
+    week: 9,
+    title: 'Indirection',
+    oneLiner:
+      'Put an intermediate object between two components so they talk through it rather than being coupled directly to each other.',
+  },
+  {
+    id: 'open-closed',
+    week: 9,
+    title: 'Open/closed',
+    oneLiner:
+      'Code should be open to extension — add a new subclass — and closed to modification — do not edit working code. Adding a payment type should mean a new class, never a new else-if.',
+  },
+
+  // -------------------------------------------- week 10: design patterns
+  {
+    id: 'pattern-what',
+    week: 10,
+    title: 'What a design pattern is',
+    oneLiner:
+      'A named, reusable template for a recurring class of design problem, not a one-off fix. Pattern-based solutions are reusable, extensible and maintainable.',
+  },
+  {
+    id: 'pattern-categories',
+    week: 10,
+    title: 'The three categories',
+    oneLiner:
+      'Creational patterns capture ways to create objects, structural ways to assemble them, behavioural ways they communicate. There are exactly three — anything else named is a distractor.',
+  },
+  {
+    id: 'singleton',
+    week: 10,
+    title: 'Singleton',
+    oneLiner:
+      'One instance for the whole application, via a private constructor plus a static field and a static GetInstance that creates it only if it does not exist yet. Creational.',
+  },
+  {
+    id: 'factory',
+    week: 10,
+    title: 'Factory',
+    oneLiner:
+      'Defines an interface for object creation and lets the factory or a subclass decide which concrete class to instantiate, so the client never depends on the concrete types. Creational.',
+  },
+  {
+    id: 'adapter',
+    week: 10,
+    title: 'Adapter',
+    oneLiner:
+      'Wraps a class whose interface does not match what your code expects, translating between the two without modifying either side. Structural.',
+  },
+  {
+    id: 'composite-pattern',
+    week: 10,
+    title: 'Composite',
+    oneLiner:
+      'Composes objects into a part-whole tree so individual objects and compositions are treated uniformly through one component interface. Structural.',
+  },
+  {
+    id: 'strategy',
+    week: 10,
+    title: 'Strategy',
+    oneLiner:
+      'Encapsulates interchangeable algorithms behind one interface so the context can swap which one it uses at runtime — a Robot switching aggressive, defensive or normal behaviour. Behavioural.',
+  },
+  {
+    id: 'observer',
+    week: 10,
+    title: 'Observer',
+    oneLiner:
+      'A subject automatically notifies many observers when its state or properties change. Behavioural — and not the same as Command, which encapsulates a request as an object.',
+  },
+  {
+    id: 'command-pattern',
+    week: 10,
+    title: 'Command',
+    oneLiner:
+      'Encapsulates a request as an object with a shared Execute contract, so LookCommand and MoveCommand both inherit one abstract Command. Behavioural.',
+  },
+  {
+    id: 'composition-over-inheritance',
+    week: 10,
+    title: 'Composition over inheritance',
+    oneLiner:
+      'Patterns compose behaviour through interfaces — has-a — rather than deep rigid inheritance chains, which is why every pattern here hands you an interface rather than a base class to extend.',
+  },
+
+  // --------------------------------- week 11: other OO languages, memory
+  {
+    id: 'cross-language-oop',
+    week: 11,
+    title: 'OOP across languages',
+    oneLiner:
+      'Abstraction, encapsulation, inheritance and polymorphism exist in every OO language; only the syntax changes. C++ ends a class with a semicolon and uses public:/private: section labels, Swift uses init, JavaScript uses prototypes.',
+  },
+  {
+    id: 'stack-heap-languages',
+    week: 11,
+    title: 'Stack or heap, by language',
+    oneLiner:
+      'C++ and Delphi let the developer choose: a declared object sits on the stack and uses dot syntax, a new-ed one sits on the heap behind a pointer and uses arrow syntax. C# always heaps its objects.',
+  },
+  {
+    id: 'static-dynamic-typing',
+    week: 11,
+    title: 'Static vs dynamic typing',
+    oneLiner:
+      'Static: the compiler checks the declared variable type at compile time (C#, C++, Java). Dynamic: the object itself decides at run time (JavaScript, Python, Objective-C).',
+  },
+  {
+    id: 'object-destruction',
+    week: 11,
+    title: 'How languages destroy objects',
+    oneLiner:
+      'Manual delete via a ~destructor (C++), reference counting that frees at zero (Swift, Objective-C), or garbage collection run by the runtime (C#, Java).',
+  },
+  {
+    id: 'benchmarking',
+    week: 11,
+    title: 'Benchmarking a program',
+    oneLiner:
+      'Stopwatch.StartNew() immediately before the block you are timing, watch.Stop() after, read ElapsedMilliseconds; Process.GetCurrentProcess().WorkingSet64 and PeakWorkingSet64 for memory.',
+  },
 ];
 
 export const CONCEPT_BY_ID: Record<string, Concept> = Object.fromEntries(
   CONCEPTS.map((c) => [c.id, c]),
 );
 
-/** The weeks the midterm draws from, in order. */
+/**
+ * The weeks the midsemester test draws from, in order.
+ *
+ * Kept as its own export because a great deal of code — the rail, the board,
+ * the mock blueprint — was written against it when there was only one exam.
+ * `EXAM_BY_ID[exam].weeks` is the general form; this is the midsem's list,
+ * and the two must agree (`exams.test.ts` asserts it).
+ */
 export const FOCUS_WEEKS = [1, 2, 3, 4, 5];
+
+/** Every week any exam draws from, in order. */
+export const ALL_WEEKS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 
 export function conceptsOfWeek(week: number): Concept[] {
   return CONCEPTS.filter((c) => c.week === week);

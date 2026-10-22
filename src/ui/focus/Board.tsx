@@ -3,7 +3,7 @@
  *
  * The organising question is "what should I do in the next twenty minutes",
  * and the page answers it in one place before showing anything else. Below
- * that, the five weeks are laid out as a grid of concept tiles rather than a
+ * that, the exam's weeks are laid out as a grid of concept tiles rather than a
  * percentage, because a student four days out needs to see *which* ideas are
  * red, not how close to a number they are.
  *
@@ -11,9 +11,10 @@
  * time is actually best spent.
  */
 
-import { CONCEPTS, FOCUS_WEEKS } from '@/content/focus/concepts';
+import { CONCEPTS } from '@/content/focus/concepts';
 import { CONCEPT_BY_ID } from '@/content/focus/concepts';
-import { BANK, MOCK_MINUTES } from '@/content/focus/bank';
+import { BANK } from '@/content/focus/bank';
+import { EXAM_BY_ID, type ExamId } from '@/content/focus/exams';
 import { notesOfWeek } from '@/content/focus/notes';
 import {
   MASTERY_LABEL,
@@ -29,6 +30,7 @@ import {
 
 export function Board({
   focus,
+  exam = 'midsem',
   onOpenNotes,
   onDrillWeek,
   onFix,
@@ -36,15 +38,19 @@ export function Board({
   onReviewMock,
 }: {
   focus: FocusState;
+  /** Which exam this board is about — decides the weeks shown and the facts. */
+  exam?: ExamId;
   onOpenNotes: (week: number, conceptId?: string) => void;
   onDrillWeek: (week: number) => void;
   onFix: (conceptId: string) => void;
   onMock: (paper: number) => void;
   onReviewMock: (index: number) => void;
 }) {
-  const readiness = Math.round(overallReadiness(focus) * 100);
+  const spec = EXAM_BY_ID[exam];
+  const weeks = spec.weeks;
+  const readiness = Math.round(overallReadiness(focus, exam) * 100);
   const action = nextAction(focus);
-  const fixes = openFixes(focus);
+  const fixes = openFixes(focus, exam);
 
   const run = (a: NextAction) => {
     if (a.kind === 'fix') onFix(a.conceptId);
@@ -62,15 +68,17 @@ export function Board({
 
   return (
     <div className="board">
-      <div className="board-eyebrow">COS20007 · Midterm test, Week 6</div>
+      <div className="board-eyebrow">
+        COS20007 · {spec.name}, {spec.when}
+      </div>
       <h1 className="board-title">Everything the paper can ask, and where you stand on it.</h1>
 
       <div className="board-facts">
-        <span>10 multiple-choice questions</span>
-        <span>{MOCK_MINUTES} minutes</span>
+        <span>{spec.length} questions</span>
+        <span>{spec.minutes} minutes</span>
         <span>Closed book</span>
-        <span>Weeks 1–5 only</span>
-        <span>10% of your mark</span>
+        <span>{spec.scope}</span>
+        {exam === 'midsem' ? <span>10% of your mark</span> : <span>20% of your mark</span>}
       </div>
 
       <div className="board-top">
@@ -149,7 +157,7 @@ export function Board({
         </>
       )}
 
-      <SectionHeading title="The five weeks" />
+      <SectionHeading title={`The ${weeks.length} weeks`} />
       <div className="legend">
         {(['untested', 'shaky', 'revising', 'partial', 'solid'] as const).map((m) => (
           <span key={m} className="legend-item">
@@ -159,7 +167,7 @@ export function Board({
         ))}
       </div>
 
-      {FOCUS_WEEKS.map((week) => {
+      {weeks.map((week) => {
         const notes = notesOfWeek(week);
         const pct = Math.round(weekReadiness(focus, week) * 100);
         const concepts = CONCEPTS.filter((c) => c.week === week);
@@ -218,8 +226,9 @@ export function Board({
 
       <SectionHeading title="Mock papers" />
       <p className="board-note">
-        Ten questions, {MOCK_MINUTES} minutes, no feedback until you submit. Each paper draws
-        different questions from the same bank, two per week — the same spread as the real one.
+        {spec.length} questions, {spec.minutes} minutes, no feedback until you submit. Each paper
+        draws different questions from the same bank, spread across the weeks the same way the real
+        one is.
       </p>
 
       <div className="mock-list">
@@ -239,7 +248,7 @@ export function Board({
         })}
         <button className="mock-new" onClick={() => onMock(focus.nextPaper)}>
           <strong>Sit paper {focus.nextPaper}</strong>
-          <span>{MOCK_MINUTES} minutes, from now</span>
+          <span>{spec.minutes} minutes, from now</span>
         </button>
       </div>
 

@@ -5,23 +5,35 @@ lesson content in this repo, so a future session can diff those folders against
 this file instead of re-reading everything. Read this first before doing any
 content work; update it after finishing a week.
 
-There are **two** external folders, and a week can be built from either:
+There are **three** external folders, and a week can be built from any of them:
 
 | Folder | Holds |
 |---|---|
-| `C:\Users\Klizs\Documents\Code\OOP C# Build Assist\resources` | Lecture transcripts, revision quizzes, and the `OOP LabN.pdf` task sheets |
-| `C:\Users\Klizs\Documents\School\OOP LAB` | **The student's own lab code**, `lab2/`...`lab8/`, plus a hand-written `TIMELINE.md` tracing what changed each week and why |
+| `C:\Users\Klizs\Documents\School\2025Sem2\OOP` | **The current, complete set.** Lectures 1–11, Quizzes 1–10, and `Final_Mockup Sample (2).pdf`. Superseded the folder below in October 2026. |
+| `C:\Users\Klizs\Documents\Code\OOP C# Build Assist\resources` | The original folder: Lectures 1–8, Quizzes 1–8, and the `OOP LabN.pdf` task sheets. Weeks 2–8 were built from it. |
+| `C:\Users\Klizs\Documents\School\OOP LAB` | **The student's own lab code**, `lab2/`...`lab11/`, the task sheets in `Weekly Lab Task/` (`OOP Lab2.pdf`...`Lab12.pdf`), plus a hand-written `TIMELINE.md` tracing what changed each week and why |
 
-The second folder was found late (during the Week 7 lab rebuild) and is worth
+The third folder was found late (during the Week 7 lab rebuild) and is worth
 checking **before concluding a week has no lab**: Week 7's task sheet is a
 duplicate of Week 6's, and on that basis Week 7 was first built with no lab at
 all - but `lab7/7.1/` holds real, distinct Week 7 work. A missing sheet does not
 mean a missing task. Its `TIMELINE.md` is the fastest way to see what each week
 actually added.
 
-Neither folder's files are ever copied into this repo.
+No folder's files are ever copied into this repo.
 
-## Done — all 8 weeks of currently-provided resources are built
+## Done — the theory side is complete through Week 11
+
+**The two portals are at different points, and that is the thing to know
+before picking up work here:**
+
+- **Concept Focus (the theory portal)** covers **Weeks 1–11** — both exams,
+  fully built. 77 concepts, 501 questions, 11 weeks of revision notes.
+- **The lesson portal (practice)** covers **Weeks 2–8**. Labs 9, 10 and 11
+  have no lessons yet, though all their resources are in hand. See Pending.
+
+The table below tracks the original Weeks 1–8 build; the final-exam batch is
+in its own table beneath it.
 
 | Resource file | Used in | Notes |
 |---|---|---|
@@ -50,6 +62,24 @@ Neither folder's files are ever copied into this repo.
 | `Lecture 8.md` (Week 8: Good OO design; a live-coded `Bag`/composite/`IHaveInventory` walkthrough) | `week8.ts` | Fully used. §1–§4 (four goals; lazy/antisocial/conformist; MVC; Strategy; Square-Rectangle; the design smells and class-size tips) are lesson 3. §0 — the `Bag` composite, its three unit tests including the deliberately-failing nested search, and `IHaveInventory` — is lesson 4. **§0 is really Week 9's lab**, and there is no Lab 9 sheet in the folder, so it is built from the lecture alone and the lesson says so; the recursive fix the lecture leaves as an exercise is built as one. |
 | `OOP Lab8.pdf` (Tasks 8.1 Player, 8.2 save/load) | `week8.ts` | Both tasks fully covered, all five named unit tests. The file format on page 7 is a screenshot, not prose — three lines, name / description / comma-separated item descriptions — which is why step 13 asks for `ItemList` to be reformatted. Method names (`SaveObject`, `LoadFrom`) come from Lecture 7's transcript, since Lab8.pdf's steps 12/14 are screenshots too. |
 | `Quiz 8.md` (6 Q&A) | `week8.ts` | All six used and cited by number: Q6 (lazy) and Q3 (MVC) in the laziness steps, Q1 (antisocial) in the anti-sociality step, Q2 (Square/Rectangle) as the conformity predict block, Q4 (polymorphism over if-else) and Q5 (deep hierarchies) in the design-smells step. `week8.test.ts` asserts Q1–Q6 each appear. |
+
+### The 2026-10-22 batch — the final-exam resources
+
+A second resources folder appeared at
+`C:\Users\Klizs\Documents\School\2025Sem2\OOP`, holding Lectures 1–11,
+Quizzes 1–10 and the released final mockup. Lectures 1–8 and Quizzes 1–8
+duplicate what the table above was built from. **New, and all used:**
+
+| Resource file | Used in | Notes |
+|---|---|---|
+| `Final_Mockup Sample (2).pdf` | `focus/exams.ts`, every `focus/bank/week6-11.ts`, `focus/__tests__/final.test.ts` | **The highest-value file in either folder** — the closest thing to a released past paper for the final. Its printed header is where the 20/40min/Weeks 1–11/Week 12 details come from. All 12 questions are covered by the bank, asserted one-per-`it` in `final.test.ts`. |
+| `Lecture 9.md` (GRASP + the Command pattern) | `focus/bank/week9.ts`, `focus/notes/week9.ts` | Theory fully used: all nine GRASP principles, coupling/cohesion with the Employee/Payroll and MusicPlayer examples, and the challenges list. **The live-coded `Command`/`LookCommand` build is Lab 10's**, and is *not* built — it belongs to the unwritten `week10.ts` lesson (see Pending). |
+| `Lecture 10.md` (design patterns + `Location`) | `focus/bank/week10.ts`, `focus/notes/week10.ts` | Theory fully used: the three categories, Singleton, Adapter, Composite, Factory, Strategy, composition-over-inheritance. **Note the live self-correction** — the deck labels Singleton *Structural* and the lecturer fixes it to *Creational* on camera; the corrected answer is taught, and the slip is flagged in the notes because a student revising from raw slides will meet it. The `Location`/`Path`/`MoveCommand` code is Lab 11's and is not built. |
+| `Lecture 11.md` (other OO languages, memory, benchmarking) | `focus/bank/week11.ts`, `focus/notes/week11.ts` | Fully used. Also the **source for the mockup walkthrough** (§3), whose twelve rows give the lecturer's own reasoning per question — including the elimination strategy for pattern questions, which is reproduced in the Week 10 notes. Its §3.1 is where the "20 vs 22 questions" discrepancy is recorded. |
+| `Quiz 9.md` (6 Q&A) | `focus/bank/week9.ts` | All six used: Q4 (low coupling), Q5 (not-high-cohesion), Q6 (Creator), Q2 (Pure Fabrication), Q1 (NotificationService refactor), Q3 (PaymentProcessor — which *is* mockup Q9). |
+| `Quiz 10.md` (10 Q&A) | `focus/bank/week10.ts`, `focus/bank/week8.ts` | All ten used. Q6 (class size too small/too large) went to **Week 8** rather than Week 10, since it is a good-design question rather than a pattern one. Q2 introduces **Observer**, which is *not* in Lecture 10's deck but is examinable and appears as a mockup distractor — same for Prototype and Builder, each covered just well enough to be eliminated. |
+| `All Notes.md` | *(not used)* | A concatenation of the individual lecture files, which were read directly instead. Nothing in it is unique. |
+| `OOP Lab9.pdf`, `Lab10.pdf`, `Lab11.pdf`, `Lab12.pdf` | *(not used yet)* | In `OOP LAB/Weekly Lab Task/`. These are **practice-portal** work, not theory — see Pending. |
 
 ## Engine bugs found and fixed while authoring content
 
@@ -267,37 +297,79 @@ All pinned by `engine/__tests__/fileio.test.ts`.
   — including Task 8.2's sample of a saved *text* file, where the player's name
   came out coloured as a type. `StepView.tsx` passes it through now.
 
-## Concept Focus is now scoped by exam
+## Concept Focus is scoped by exam — and the final is now built
 
 `src/content/focus/exams.ts` names the two papers, and everything in the mode
 hangs off an `ExamId` (`'midsem' | 'final'`) carried on the shell's view.
 
-- **Midsem** is everything that already existed: 34 concepts, 353 questions,
-  Weeks 1–5 notes, mock papers. Unchanged.
-- **Final** is deliberately empty, and its tab says so rather than showing a
-  0% dial against an empty bank. `src/ui/focus/FinalView.tsx` states what is
-  known (nothing — **no lecture up to Week 8 announces the final's date or
-  format**, so nothing in the file invents one), lists the Weeks 1–5 notes as
-  still worth reading, and names Weeks 6–8 as lessons-built-notes-not-written.
-  When Week 9+ arrives: give `exams.ts` a real `weeks` list for the final and
-  let `FinalView` hand over to the same `Board` the midsem tab uses.
+- **Midsem** — 34 concepts, 353 questions, Weeks 1–5 notes. Unchanged by the
+  final build, and deliberately so: its scope is its value.
+- **Final** — **built 2026-10-22** from the Week 9–11 resources and the
+  released mockup paper. 77 concepts, 501 questions, Weeks 1–11 notes.
 
-The home page grew a **Revision** section in place of the single midterm promo:
-two exam cards, and a strip of chips straight into each week's revision notes.
-`Home`'s `onFocus` now takes `(exam?, notesWeek?)`.
+### What the final's details come from
+
+The mockup paper (`Final_Mockup Sample (2).pdf`) states the format in its own
+printed header, which is what `exams.ts` records: **20 questions, 40 minutes,
+closed book, Weeks 1–11, in-class in the first hour of Week 12**. Worth
+knowing before "correcting" any of it:
+
+- Lecture 11 says "20 questions" and later "22", and the mockup handed out has
+  only **12**. 20 is used, because it is the number on the paper's own header.
+- The paper is **not** Weeks 6–11 only. Lecture 11: *"theoretical content from
+  Weeks 6–11, but coding analysis questions from Week 1–11."* So the final's
+  `weeks` is the whole unit and the 353 midsem questions are the code-analysis
+  half of it — the blueprint is 12 questions from Weeks 6–11 and 8 from
+  Weeks 1–5.
+
+### What changed structurally
+
+`MOCK_LENGTH`/`MOCK_MINUTES`/`BLUEPRINT` were global constants assuming one
+exam. They now live on the `Exam` record (`length`, `minutes`, `blueprint`),
+and `buildMockPaper(n, avoid, exam)` takes the exam. Two consequences worth
+knowing:
+
+- `buildMockPaper` adds a **per-exam seed offset**, or paper 1 of each exam
+  would draw identically from the weeks they share.
+- `overallReadiness` and `openFixes` in `state/focus.ts` take an `ExamId`.
+  Averaged flat they would tell a midsem student they are unready because they
+  do not know design patterns — material that paper does not examine.
+
+`src/ui/focus/FinalView.tsx` **was deleted**, along with the `unbuilt` view and
+the `.gap-row` CSS. It existed to describe a state — an announced exam with
+nothing written for it — that no longer exists. The `ready: false` guards are
+still in the UI, unused, for whenever a third exam appears unbuilt.
+
+`src/content/focus/__tests__/final.test.ts` asserts one case per mockup
+question, so dropping the material behind any of the twelve fails the build.
+
+The home page's **Revision** section carries two exam cards and a strip of
+chips into every week's notes. `Home`'s `onFocus` takes `(exam?, notesWeek?)`,
+and a chip opens in whichever exam examines that week.
 
 ## Pending
 
-- **Week 9 is the next build**, and one thing is already known about it: Lecture
-  8 calls the good-design material "step stones toward **Week 9's design
-  patterns** topic", and live-codes the `Bag`/composite/`IHaveInventory` work
-  that is almost certainly Lab 9. That lecture content is **already built**, in
-  `week8.ts`'s lesson 4, from the lecture alone — when a real Lab 9 sheet
-  arrives, check it against `w8-comp-*` before rebuilding anything.
-- **Concept Focus for the final** is scaffolded but empty — see the section
-  above. Weeks 6, 7 and 8 have lessons but no revision notes, no concepts in
-  `concepts.ts` and no questions in the bank. That is the single largest piece
-  of outstanding work in the repo.
+- **The practice portal stops at Week 8.** This is now the single largest piece
+  of outstanding work. `week9.ts`, `week10.ts` and `week11.ts` do not exist, so
+  Labs 9, 10 and 11 have no lessons — even though the *theory* for those weeks
+  is fully built in Concept Focus. Everything needed is in hand:
+
+  | Week | Lab sheet | The student's own code | Lecture that walks it |
+  |---|---|---|---|
+  | 9 | `OOP Lab9.pdf` | `OOP LAB/lab9/` | Lecture 8 §0 (`Bag`/composite — **already built** as `week8.ts` lesson 4; check `w8-comp-*` before rebuilding) |
+  | 10 | `OOP Lab10.pdf` | `OOP LAB/lab10/10.1`, `10.2` | Lecture 9 §3 (abstract `Command`, `LookCommand`, its NUnit suite) |
+  | 11 | `OOP Lab11.pdf` | `OOP LAB/lab11/` | Lecture 10 §3–4 (`Location`, and the optional `Path`/`MoveCommand`) |
+
+  Remember the one-week offset documented below: **Lecture N walks through Lab
+  N+1's tasks.** Lecture 9 is the Lab 10 walkthrough, Lecture 10 is Lab 11's.
+  `lab10/10.1` already contains `Command.cs`, `LookCommand.cs` and
+  `LookCommandTests.cs`, so the real code is there to check lessons against.
+- **`OOP Lab12.pdf` exists too**, and Lecture 11 §9 describes the Week 12 task
+  (the `Clock`/`Counter` benchmark, with `Stopwatch` and `WorkingSet64`). The
+  final exam does not examine it — the test is in Week 12's *first* hour and
+  the task is the second — so it is genuinely optional for exam prep, but it
+  is the last lab and the theory for it is already written into
+  `focus/notes/week11.ts`.
 - **`Swin-Adventure Requirements.pdf`**'s full command-keyword table
   (move/look/pickup/put/inventory/quit) and Room/General-Thing spec are still
   unbuilt, unchanged since Week 5. `Bag` is now covered by Week 8.
@@ -313,10 +385,13 @@ two exam cards, and a strip of chips straight into each week's revision notes.
   currently teach unevenly, and `lab8/LAB8_NOTES.md`, a step-by-step account of
   Task 8.1/8.2 written from the code that `week8.ts` was built without.
 
-Everything else in both folders has been used, through Week 8. On the next
-content session: list both folders, diff their filenames against the tables
-above, and only read what's new — and remember that the lab-code folder can
-carry a task the resources folder has no sheet for.
+Every **lecture, quiz and mockup** in all three folders has now been used. What
+has not is the **lab material for Weeks 9–11** — four task sheets and three
+folders of the student's own code — which is practice-portal work.
+
+On the next content session: list all three folders, diff their filenames
+against the tables above, and only read what's new — and remember that the
+lab-code folder can carry a task the resources folder has no sheet for.
 
 ## Scope hints worth knowing before continuing past Week 8
 

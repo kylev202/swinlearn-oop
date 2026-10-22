@@ -23,6 +23,7 @@
 import { CONCEPTS, CONCEPT_BY_ID } from '@/content/focus/concepts';
 import { QUESTION_BY_ID, questionsOfConcept } from '@/content/focus/bank';
 import { MOCK_MINUTES } from '@/content/focus/bank';
+import { EXAM_BY_ID, type ExamId } from '@/content/focus/exams';
 
 /** How many consecutive correct answers close a fix-up, once revised. */
 export const CLEAR_STREAK = 2;
@@ -226,19 +227,38 @@ export function weekReadiness(state: FocusState, week: number): number {
   return total / ids.length;
 }
 
-/** Readiness across all five weeks, 0..1. */
-export function overallReadiness(state: FocusState): number {
-  const stats = allConceptStats(state);
+/**
+ * Readiness across the weeks one exam covers, 0..1.
+ *
+ * Scoped by exam rather than over the whole concept map, because the map now
+ * spans two papers. Averaged flat it would tell a student revising for the
+ * midsemester test that they are unready because they do not know the design
+ * patterns — material that paper does not examine — and tell a student
+ * revising for the final that they are further along than they are.
+ */
+export function overallReadiness(state: FocusState, exam: ExamId = 'midsem'): number {
+  const weeks = new Set(EXAM_BY_ID[exam].weeks);
+  const stats = CONCEPTS.filter((c) => weeks.has(c.week)).map((c) => conceptStats(state, c.id));
   if (!stats.length) return 0;
   return stats.reduce((n, s) => n + MASTERY_WEIGHT[s.mastery], 0) / stats.length;
 }
 
-/** Open fix-ups, worst first: unrevised before revised, then oldest. */
-export function openFixes(state: FocusState): FixUp[] {
-  return Object.values(state.fixes).sort((a, b) => {
-    if (a.revised !== b.revised) return a.revised ? 1 : -1;
-    return a.since - b.since;
-  });
+/**
+ * Open fix-ups, worst first: unrevised before revised, then oldest.
+ *
+ * Scoped the same way. A mistake made on a Week 10 question is not something
+ * a student preparing for the midsemester test needs chased, so it does not
+ * appear in that tab's count — but it is still recorded, and still waiting on
+ * the Final tab.
+ */
+export function openFixes(state: FocusState, exam?: ExamId): FixUp[] {
+  const weeks = exam ? new Set(EXAM_BY_ID[exam].weeks) : null;
+  return Object.values(state.fixes)
+    .filter((f) => !weeks || weeks.has(CONCEPT_BY_ID[f.conceptId]?.week ?? 0))
+    .sort((a, b) => {
+      if (a.revised !== b.revised) return a.revised ? 1 : -1;
+      return a.since - b.since;
+    });
 }
 
 // ------------------------------------------------------------ what to do next
