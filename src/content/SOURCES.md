@@ -29,8 +29,9 @@ before picking up work here:**
 
 - **Concept Focus (the theory portal)** covers **Weeks 1–11** — both exams,
   fully built. 77 concepts, 501 questions, 11 weeks of revision notes.
-- **The lesson portal (practice)** covers **Weeks 2–8**. Labs 9, 10 and 11
-  have no lessons yet, though all their resources are in hand. See Pending.
+- **The lesson portal (practice)** covers **Weeks 2–11**. Every lab with a
+  task sheet is built except Week 12's, which the final does not examine.
+  See Pending.
 
 The table below tracks the original Weeks 1–8 build; the final-exam batch is
 in its own table beneath it.
@@ -79,9 +80,78 @@ duplicate what the table above was built from. **New, and all used:**
 | `Quiz 9.md` (6 Q&A) | `focus/bank/week9.ts` | All six used: Q4 (low coupling), Q5 (not-high-cohesion), Q6 (Creator), Q2 (Pure Fabrication), Q1 (NotificationService refactor), Q3 (PaymentProcessor — which *is* mockup Q9). |
 | `Quiz 10.md` (10 Q&A) | `focus/bank/week10.ts`, `focus/bank/week8.ts` | All ten used. Q6 (class size too small/too large) went to **Week 8** rather than Week 10, since it is a good-design question rather than a pattern one. Q2 introduces **Observer**, which is *not* in Lecture 10's deck but is examinable and appears as a mockup distractor — same for Prototype and Builder, each covered just well enough to be eliminated. |
 | `All Notes.md` | *(not used)* | A concatenation of the individual lecture files, which were read directly instead. Nothing in it is unique. |
-| `OOP Lab9.pdf`, `Lab10.pdf`, `Lab11.pdf`, `Lab12.pdf` | *(not used yet)* | In `OOP LAB/Weekly Lab Task/`. These are **practice-portal** work, not theory — see Pending. |
+| `OOP Lab9.pdf` | `week9.ts` | Both tasks. **Contradicts Lecture 8 on `Bag.Locate`** — see the note below. The verification task (`IdentifierCount` on `IHaveInventory`, then a polymorphic list sorted by it) comes from `lab9/9.2` rather than the sheet. |
+| `OOP Lab10.pdf` | `week10.ts` | Both tasks, all eight named unit tests, and the exact error strings — which Lecture 9's transcript gets wrong (see below). The page-6 code template contradicts the page-2 UML on `LookCommand`'s constructor; the UML and the working code win. Verification task: case-insensitivity, from `lab10/10.1`. |
+| `OOP Lab11.pdf` | `week11.ts` | Both tasks. 11.2 is marked **"challenging"** and deliberately gives requirements rather than a design, so the lesson teaches one worked answer and marks off what is forced from what is chosen. Built from `lab11/`, which has `Location.cs`, `Path.cs` and `MoveCommand.cs`. |
+| `OOP Lab12.pdf` | *(not used)* | The last lab, and the only one left. Not examined by the final — see Pending. |
+
+### Where the lab sheets contradict the lectures (Weeks 9-11)
+
+Both of these are invisible to any structural check and are pinned by tests,
+because getting either wrong silently fails real marks. **The sheet wins in
+both cases** — it is what is graded.
+
+**1. `Bag.Locate` is flat, not recursive.** `OOP Lab9.pdf` page 3's "Test Bag
+in Bag" requires in bold that `b1` **can not** locate items inside `b2`, and
+its last test turns that into a security property: a privileged item inside
+`b2` must stay invisible to `b1`. The Week 8 *lecture* treats the same shallow
+search as a bug and leaves recursion as an exercise, which is how `week8.ts`
+originally taught it.
+
+- `w8-comp-fix` now teaches **flat as the graded answer** and keeps the
+  recursive version as a clearly-labelled extension.
+- `week9.test.ts` asserts that a **recursive** `Locate` *fails* Week 9's
+  checks. If that test ever starts passing, the lesson has drifted back toward
+  the lecture and away from what is marked.
+
+**2. The look command's error strings are `can't`, not `cannot`.** Lecture 9's
+transcript reconstructs `"I cannot find the " + thingId`; `OOP Lab10.pdf` page
+3 and `lab10/10.1/LookCommand.cs` both say **`"I can't find the "`**, and
+`LookCommandTests.cs` asserts on it with `Is.EqualTo`. Five of the eight named
+tests compare these strings. `week10.test.ts` asserts the lecture's spelling
+fails.
+
+Also in Week 10: there are **two distinct "I can't find the X" messages** — a
+missing *container* is reported by `Execute` naming word 5, a missing *item* by
+`LookAtIn` naming word 3. Conflating them fails `LookAtItemInNoBag` or
+`LookAtNothingInBag`.
+
+**3. `Path` moves the player, not `MoveCommand`.** `OOP Lab11.pdf` asks for it
+that way and gives the reason — *"This will allow for flexibility like lockable
+paths etc."* Lecture 10's reconstruction has the command assign
+`player.Location` directly. Both behave identically today, so no output check
+can tell them apart; the structure check on `Path.Move` is what holds the
+design to the sheet.
+
+### Task 11.2 has no UML, on purpose
+
+It is marked **"challenging task"** and says *"It is up to your custom design
+and implementation to meet the following requirements"*, then asks the student
+to **hand-draw** a class diagram and a sequence diagram and present them. So
+`w11-task112` teaches one worked design (from `lab11/`) and opens with a table
+marking which parts the requirements force and which are genuinely choices. Do
+not rewrite it as though the sheet specified a single answer — it did not, and
+the interview asks the student to justify theirs.
 
 ## Engine bugs found and fixed while authoring content
+
+- **`List.Sort` ignored its comparison delegate (found in week9.ts, fixed).**
+  `xs.Sort((a, b) => a.IdentifierCount.CompareTo(b.IdentifierCount))` accepted
+  the lambda and then sorted by string-or-number anyway, so sorting any list of
+  *objects* died with "Expected a number but got a Bag" however correct the
+  comparator was. Lab 9's verification task sorts a `List<IHaveInventory>` by a
+  property, which is exactly that shape. `Sort` now calls the comparator, via a
+  new `BuiltinHost.callSync` that drives a lambda's generator to completion —
+  safe for a comparator (short expression, no I/O worth interleaving) and
+  deliberately not offered for anything else. The no-arg `Sort()` is unchanged.
+
+- **Interface conformance is not checked (found in week9.ts, not fixed —
+  disclosed instead).** A class may declare `: IHaveInventory` and omit `Name`
+  entirely; the interpreter runs it and the member resolves off the concrete
+  class. Visual Studio makes this a compile error. `w9-92-implement` says so in
+  a callout rather than pretending, the prediction that would have claimed a
+  compile error is a **quiz** instead (no runtime claim to be wrong about), and
+  the UML is enforced with `structure` checks on the interface's members.
 
 - **`checkFieldAccess`/`canAccess` (found in week4.ts):** used the receiver's *runtime* class (e.g. `Item`) as the "owner" when checking protected/private access, instead of the class that actually *declares* the field (e.g. `GameObject`). Broke completely valid C# — `this.name = name;` inside `GameObject`'s own constructor, called via `new Item(...)`, was rejected as "'name' is protected inside 'Item'". Fixed by tracking the actual declaring class through the ancestry search. Covered by `week4.test.ts`'s GameObject/Item tests — a regression here fails those with a "protected inside" error again.
 - **Custom exception classes (found in week5.ts, not fixed — scoped around instead):** `class X : Exception { public X(string m) : base(m) {} }` parses and the class can be thrown/caught by its own name, but `base(m)` never reaches a real `System.Exception`, so `.Message` throws "no member called Message". `Exception` and friends are handled as a special built-in `{k:'exception'}` heap kind, not a real registered `ClassInfo`, so user subclasses of it don't get real inheritance semantics. `week5.ts`'s exceptions lesson teaches this pattern (Quiz 5 Q1) as a read-only code example only — every graded/predicted exception exercise throws a built-in exception type instead, which works correctly. Worth a proper fix if a future week needs custom exceptions to actually run.
@@ -349,27 +419,13 @@ and a chip opens in whichever exam examines that week.
 
 ## Pending
 
-- **The practice portal stops at Week 8.** This is now the single largest piece
-  of outstanding work. `week9.ts`, `week10.ts` and `week11.ts` do not exist, so
-  Labs 9, 10 and 11 have no lessons — even though the *theory* for those weeks
-  is fully built in Concept Focus. Everything needed is in hand:
-
-  | Week | Lab sheet | The student's own code | Lecture that walks it |
-  |---|---|---|---|
-  | 9 | `OOP Lab9.pdf` | `OOP LAB/lab9/` | Lecture 8 §0 (`Bag`/composite — **already built** as `week8.ts` lesson 4; check `w8-comp-*` before rebuilding) |
-  | 10 | `OOP Lab10.pdf` | `OOP LAB/lab10/10.1`, `10.2` | Lecture 9 §3 (abstract `Command`, `LookCommand`, its NUnit suite) |
-  | 11 | `OOP Lab11.pdf` | `OOP LAB/lab11/` | Lecture 10 §3–4 (`Location`, and the optional `Path`/`MoveCommand`) |
-
-  Remember the one-week offset documented below: **Lecture N walks through Lab
-  N+1's tasks.** Lecture 9 is the Lab 10 walkthrough, Lecture 10 is Lab 11's.
-  `lab10/10.1` already contains `Command.cs`, `LookCommand.cs` and
-  `LookCommandTests.cs`, so the real code is there to check lessons against.
-- **`OOP Lab12.pdf` exists too**, and Lecture 11 §9 describes the Week 12 task
-  (the `Clock`/`Counter` benchmark, with `Stopwatch` and `WorkingSet64`). The
-  final exam does not examine it — the test is in Week 12's *first* hour and
-  the task is the second — so it is genuinely optional for exam prep, but it
-  is the last lab and the theory for it is already written into
-  `focus/notes/week11.ts`.
+- **Week 12 is the only lab left.** `OOP Lab12.pdf` is in the task folder and
+  Lecture 11 §9 describes it: a `Clock` composed of three `Counter` objects,
+  benchmarked with `Stopwatch` and `Process.WorkingSet64`, then re-implemented
+  in a second language and compared. Worth knowing before deciding to build it:
+  the final test is in Week 12's **first** hour and this task is the second, so
+  **the exam does not examine it** — and the theory for it is already written
+  into `focus/notes/week11.ts`. It is the last 2 marks, not exam prep.
 - **`Swin-Adventure Requirements.pdf`**'s full command-keyword table
   (move/look/pickup/put/inventory/quit) and Room/General-Thing spec are still
   unbuilt, unchanged since Week 5. `Bag` is now covered by Week 8.
@@ -385,15 +441,15 @@ and a chip opens in whichever exam examines that week.
   currently teach unevenly, and `lab8/LAB8_NOTES.md`, a step-by-step account of
   Task 8.1/8.2 written from the code that `week8.ts` was built without.
 
-Every **lecture, quiz and mockup** in all three folders has now been used. What
-has not is the **lab material for Weeks 9–11** — four task sheets and three
-folders of the student's own code — which is practice-portal work.
+**Everything in all three folders has now been used, except `OOP Lab12.pdf`.**
+Both portals are complete to Week 11: theory for Weeks 1–11, lessons for
+Weeks 2–11.
 
 On the next content session: list all three folders, diff their filenames
 against the tables above, and only read what's new — and remember that the
 lab-code folder can carry a task the resources folder has no sheet for.
 
-## Scope hints worth knowing before continuing past Week 8
+## Scope hints worth knowing before adding any further week
 
 - `src/ui/Home.tsx`'s `PLANNED` array is now empty (all provided weeks are built) and the "Coming next" section hides itself when it is — add back to it, in the same `{n, title, note}` shape, once real material for a new week exists.
 - `src/tools/uml.ts` and `src/tools/sequence.ts` doc comments cite specific quiz question numbers they were built to serve — read these comments before assuming a tool needs new work for a future week.
